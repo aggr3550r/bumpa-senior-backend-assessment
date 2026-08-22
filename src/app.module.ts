@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { AchievementsModule } from './modules/achievements/achievements.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { BadgesModule } from './modules/badges/badges.module';
+import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -26,6 +29,9 @@ import { AppService } from './app.service';
             : false,
       }),
     }),
+    UsersModule,
+    AchievementsModule,
+    BadgesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
