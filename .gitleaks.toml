@@ -1,0 +1,4 @@
+title = "Bumpa ECommerce Store gitleaks config"
+
+[extend]
+useDefault = true
