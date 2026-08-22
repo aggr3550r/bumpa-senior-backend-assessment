@@ -2,6 +2,7 @@ import { AchievementUnlockedEvent } from '../../achievements/events/achievement-
 import { User } from '../../users/entities/user.entity';
 import { BadgeProgressionService } from '../badge-progression.service';
 import { EvaluateBadgesListener } from './evaluate-badges.listener';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 describe('EvaluateBadgesListener', () => {
   it('evaluates badge progression when an achievement is unlocked', async () => {
@@ -14,6 +15,7 @@ describe('EvaluateBadgesListener', () => {
     };
     const listener = new EvaluateBadgesListener(
       badgeProgression as unknown as BadgeProgressionService,
+      { emit: jest.fn() } as unknown as EventEmitter2,
     );
     const user = buildUser();
 
