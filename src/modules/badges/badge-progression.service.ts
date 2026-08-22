@@ -59,24 +59,31 @@ export class BadgeProgressionService {
     );
 
     /*
-     * Ordering is the persisted progression authority. If multiple badges are
-     * newly eligible, the user receives the highest eligible missing badge.
+     * Ordering is the persisted progression authority. If a user crosses
+     * multiple badge thresholds at once, persist every missing eligible badge
+     * so progression has no gaps, then report the highest newly unlocked badge.
      */
-    const newlyEligibleBadge = badges
-      .filter(
-        (badge) =>
-          badge.requiredAchievementCount <= unlockedAchievementCount &&
-          !unlockedBadgeIds.has(badge.id),
-      )
-      .at(-1);
+    const newlyEligibleBadges = badges.filter(
+      (badge) =>
+        badge.requiredAchievementCount <= unlockedAchievementCount &&
+        !unlockedBadgeIds.has(badge.id),
+    );
+    const insertedBadges: Badge[] = [];
 
-    const newlyUnlockedBadge = newlyEligibleBadge
-      ? await this.insertUserBadge(userBadgeRepository, userId, newlyEligibleBadge)
-      : null;
+    for (const badge of newlyEligibleBadges) {
+      const insertedBadge = await this.insertUserBadge(
+        userBadgeRepository,
+        userId,
+        badge,
+      );
 
-    if (newlyEligibleBadge) {
-      unlockedBadgeIds.add(newlyEligibleBadge.id);
+      if (insertedBadge) {
+        insertedBadges.push(insertedBadge);
+        unlockedBadgeIds.add(insertedBadge.id);
+      }
     }
+
+    const newlyUnlockedBadge = insertedBadges.at(-1) ?? null;
 
     /*
      * Cashback is intentionally absent here. Badge persistence is domain state;
