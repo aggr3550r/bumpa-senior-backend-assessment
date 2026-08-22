@@ -4,10 +4,11 @@ import { UserAchievement } from '../achievements/entities/user-achievement.entit
 import { BadgeProgressionService } from './badge-progression.service';
 import { Badge } from './entities/badge.entity';
 import { UserBadge } from './entities/user-badge.entity';
+import { EvaluateBadgesListener } from './listeners/evaluate-badges.listener';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Badge, UserBadge, UserAchievement])],
-  providers: [BadgeProgressionService],
+  providers: [BadgeProgressionService, EvaluateBadgesListener],
   exports: [BadgeProgressionService, TypeOrmModule],
 })
 export class BadgesModule {}
