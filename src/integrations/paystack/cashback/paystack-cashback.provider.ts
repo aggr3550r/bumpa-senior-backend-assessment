@@ -30,6 +30,8 @@ interface PaystackTransferRecipientResponse {
 
 @Injectable()
 export class PaystackCashbackProvider implements CashbackProvider {
+  readonly providerName = 'paystack';
+
   private readonly baseUrl: string;
   private readonly currency: string;
   private readonly secretKey: string;

@@ -33,7 +33,11 @@ export class EvaluateBadgesListener {
     if (result.newlyUnlockedBadge) {
       this.eventEmitter.emit(
         BADGE_UNLOCKED_EVENT,
-        new BadgeUnlockedEvent(result.newlyUnlockedBadge.name, event.user),
+        new BadgeUnlockedEvent(
+          result.newlyUnlockedBadge.name,
+          event.user,
+          result.newlyUnlockedBadge,
+        ),
       );
     }
   }
