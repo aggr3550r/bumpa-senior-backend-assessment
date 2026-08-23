@@ -23,8 +23,8 @@ describe('EvaluatePurchaseAchievementsListener', () => {
 
     await listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 1));
 
-    expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
-    expect(eventEmitter.emit).toHaveBeenCalledWith(
+    expect(eventEmitter.emitAsync).toHaveBeenCalledTimes(1);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
       ACHIEVEMENT_UNLOCKED_EVENT,
       new AchievementUnlockedEvent('First Purchase', user),
     );
@@ -37,7 +37,7 @@ describe('EvaluatePurchaseAchievementsListener', () => {
 
     await listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 1));
 
-    const emittedPayload = (eventEmitter.emit as jest.Mock).mock
+    const emittedPayload = (eventEmitter.emitAsync as jest.Mock).mock
       .calls[0][1] as AchievementUnlockedEvent;
 
     expect(emittedPayload.achievement_name).toBe('First Purchase');
@@ -66,7 +66,7 @@ describe('EvaluatePurchaseAchievementsListener', () => {
 
     await listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 5));
 
-    expect(eventEmitter.emit).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 
   it('does not emit below a configured achievement threshold', async () => {
@@ -76,7 +76,7 @@ describe('EvaluatePurchaseAchievementsListener', () => {
 
     await listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 0));
 
-    expect(eventEmitter.emit).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 
   it('does not emit when persistence fails', async () => {
@@ -89,7 +89,7 @@ describe('EvaluatePurchaseAchievementsListener', () => {
       listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 1)),
     ).rejects.toThrow(persistenceError);
 
-    expect(eventEmitter.emit).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 
   it('emits only after the evaluator has completed persistence', async () => {
@@ -104,10 +104,8 @@ describe('EvaluatePurchaseAchievementsListener', () => {
       }),
     };
     const eventEmitter = {
-      emit: jest.fn(() => {
+      emitAsync: jest.fn(async () => {
         callOrder.push('emitted');
-
-        return true;
       }),
     };
     const listener = new EvaluatePurchaseAchievementsListener(
@@ -133,8 +131,8 @@ describe('EvaluatePurchaseAchievementsListener', () => {
 
     await listener.handlePurchaseCompleted(new PurchaseCompletedEvent(user, 5));
 
-    expect(eventEmitter.emit).toHaveBeenCalledTimes(2);
-    expect((eventEmitter.emit as jest.Mock).mock.calls).toEqual([
+    expect(eventEmitter.emitAsync).toHaveBeenCalledTimes(2);
+    expect((eventEmitter.emitAsync as jest.Mock).mock.calls).toEqual([
       [
         ACHIEVEMENT_UNLOCKED_EVENT,
         new AchievementUnlockedEvent('First Purchase', user),
@@ -163,7 +161,7 @@ function createListenerHarness(options: {
     }),
   };
   const eventEmitter = {
-    emit: jest.fn(() => true),
+    emitAsync: jest.fn(async () => undefined),
   };
   const listener = new EvaluatePurchaseAchievementsListener(
     achievementEvaluator as unknown as AchievementEvaluatorService,
@@ -188,6 +186,7 @@ function buildUser(): User {
     deletedAt: null,
     achievements: [],
     badges: [],
+    purchases: [],
   };
 }
 

@@ -6,6 +6,7 @@ import { UserAchievement } from '../modules/achievements/entities/user-achieveme
 import { Badge } from '../modules/badges/entities/badge.entity';
 import { UserBadge } from '../modules/badges/entities/user-badge.entity';
 import { CashbackPayment } from '../modules/cashback/entities/cashback-payment.entity';
+import { Purchase } from '../modules/purchases/entities/purchase.entity';
 import { User } from '../modules/users/entities/user.entity';
 
 config();
@@ -33,6 +34,7 @@ export default new DataSource({
     Badge,
     UserBadge,
     CashbackPayment,
+    Purchase,
   ],
   migrations: [migrationsGlob],
   synchronize: false,

@@ -1,11 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { OnEvent } from '@nestjs/event-emitter';
+import { EventEmitter2, OnEvent } from '@nestjs/event-emitter';
 import { ACHIEVEMENT_UNLOCKED_EVENT } from '../../achievements/events/achievement.events';
 import { AchievementUnlockedEvent } from '../../achievements/events/achievement-unlocked.event';
 import { BadgeProgressionService } from '../badge-progression.service';
 import { BADGE_UNLOCKED_EVENT } from '../events/badge.events';
 import { BadgeUnlockedEvent } from '../events/badge-unlocked.event';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class EvaluateBadgesListener {

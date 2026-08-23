@@ -107,6 +107,7 @@ function buildUser(): User {
     deletedAt: null,
     achievements: [],
     badges: [],
+    purchases: [],
   };
 }
 

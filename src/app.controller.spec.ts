@@ -15,10 +15,16 @@ describe('AppController', () => {
   });
 
   describe('getHealth', () => {
-    it('returns the baseline health response', () => {
+    it('returns the baseline health response envelope', () => {
       expect(appController.getHealth()).toEqual({
-        status: 'ok',
-        service: 'bumpa-ecommerce-store',
+        status: true,
+        statusCode: 200,
+        message: 'Service is healthy',
+        data: {
+          status: 'ok',
+          service: 'bumpa-ecommerce-store',
+        },
+        meta: undefined,
       });
     });
   });

@@ -12,8 +12,6 @@ import { UserAchievement } from './entities/user-achievement.entity';
 @Injectable()
 export class AchievementEvaluatorService {
   constructor(
-    @InjectRepository(Achievement)
-    private readonly achievementRepository: Repository<Achievement>,
     @InjectRepository(UserAchievement)
     private readonly userAchievementRepository: Repository<UserAchievement>,
   ) {}
