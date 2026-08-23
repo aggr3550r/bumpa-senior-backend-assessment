@@ -142,7 +142,6 @@ function createServiceHarness(options: {
 
   return {
     service: new AchievementEvaluatorService(
-      achievementRepository as never,
       userAchievementRepository as never,
     ),
     unlockStore,

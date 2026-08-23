@@ -27,7 +27,7 @@ export class EvaluatePurchaseAchievementsListener {
      * not as a request to create it.
      */
     for (const achievement of result.unlockedAchievements) {
-      this.eventEmitter.emit(
+      await this.eventEmitter.emitAsync(
         ACHIEVEMENT_UNLOCKED_EVENT,
         new AchievementUnlockedEvent(achievement.name, event.user),
       );

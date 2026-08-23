@@ -119,7 +119,6 @@ function createServiceHarness(options: {
   return {
     badgeUnlockStore,
     service: new BadgeProgressionService(
-      badgeRepository as never,
       userBadgeRepository as never,
     ),
   };

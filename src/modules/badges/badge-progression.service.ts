@@ -12,8 +12,6 @@ import { UserBadge } from './entities/user-badge.entity';
 @Injectable()
 export class BadgeProgressionService {
   constructor(
-    @InjectRepository(Badge)
-    private readonly badgeRepository: Repository<Badge>,
     @InjectRepository(UserBadge)
     private readonly userBadgeRepository: Repository<UserBadge>,
   ) {}

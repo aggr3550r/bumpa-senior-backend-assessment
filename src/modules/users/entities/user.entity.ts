@@ -2,6 +2,7 @@ import { Column, Entity, OneToMany } from 'typeorm';
 import { TimestampedEntity } from '../../../common/entities/timestamped.entity';
 import { UserAchievement } from '../../achievements/entities/user-achievement.entity';
 import { UserBadge } from '../../badges/entities/user-badge.entity';
+import { Purchase } from '../../purchases/entities/purchase.entity';
 
 @Entity({ name: 'users' })
 export class User extends TimestampedEntity {
@@ -19,4 +20,7 @@ export class User extends TimestampedEntity {
 
   @OneToMany(() => UserBadge, (userBadge) => userBadge.user)
   badges: UserBadge[];
+
+  @OneToMany(() => Purchase, (purchase) => purchase.user)
+  purchases: Purchase[];
 }
