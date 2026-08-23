@@ -1,0 +1,34 @@
+import { getMetadataArgsStorage } from 'typeorm';
+import { CashbackPaymentStatus } from './cashback-payment-status.enum';
+import { CashbackPayment } from './entities/cashback-payment.entity';
+
+describe('CashbackPayment entity', () => {
+  it('prevents duplicate cashback entitlements for the same user and badge', () => {
+    const uniqueConstraint = getMetadataArgsStorage().uniques.find(
+      (unique) =>
+        unique.target === CashbackPayment &&
+        unique.name === 'UQ_cashback_payments_user_badge',
+    );
+
+    expect(uniqueConstraint?.columns).toEqual(['userId', 'badgeId']);
+  });
+
+  it('enforces unique provider idempotency references', () => {
+    const referenceColumn = getMetadataArgsStorage().columns.find(
+      (column) =>
+        column.target === CashbackPayment &&
+        column.propertyName === 'reference',
+    );
+
+    expect(referenceColumn?.options.unique).toBe(true);
+  });
+
+  it('defaults new records to pending payment state', () => {
+    const statusColumn = getMetadataArgsStorage().columns.find(
+      (column) =>
+        column.target === CashbackPayment && column.propertyName === 'status',
+    );
+
+    expect(statusColumn?.options.default).toBe(CashbackPaymentStatus.Pending);
+  });
+});
