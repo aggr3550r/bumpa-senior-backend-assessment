@@ -49,6 +49,39 @@ describe('CashbackPaymentService', () => {
     expect(paymentStore.size).toBe(1);
     expect(duplicateResult.payment.id).toBe(firstResult.payment.id);
   });
+
+  it('marks attempts as processing and increments the attempt count', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+
+    await service.markCashbackAttemptStarted(payment.id);
+
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Processing,
+      failureReason: null,
+      attemptCount: 1,
+    });
+  });
+
+  it('records provider outcomes on the payment record', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+
+    await service.recordProviderResult({
+      paymentId: payment.id,
+      provider: 'test-provider',
+      providerReference: 'TRF_123',
+      status: CashbackPaymentStatus.Succeeded,
+      failureReason: null,
+    });
+
+    expect(payment).toMatchObject({
+      provider: 'test-provider',
+      providerReference: 'TRF_123',
+      status: CashbackPaymentStatus.Succeeded,
+      failureReason: null,
+    });
+  });
 });
 
 function createServiceHarness() {
@@ -65,7 +98,7 @@ class FakeCashbackPaymentRepository {
   constructor(private readonly paymentStore: Map<string, CashbackPayment>) {}
 
   createQueryBuilder() {
-    return new FakeInsertQueryBuilder(this.paymentStore);
+    return new FakeQueryBuilder(this.paymentStore);
   }
 
   async findOneOrFail(options: {
@@ -80,17 +113,55 @@ class FakeCashbackPaymentRepository {
 
     return payment;
   }
+
+  async update(
+    criteria: { id: string },
+    payload: Partial<CashbackPayment>,
+  ): Promise<void> {
+    const payment = this.findPaymentById(criteria.id);
+    Object.assign(payment, payload);
+  }
+
+  private findPaymentById(paymentId: string): CashbackPayment {
+    for (const payment of this.paymentStore.values()) {
+      if (payment.id === paymentId) {
+        return payment;
+      }
+    }
+
+    throw new Error('Cashback payment was not found');
+  }
 }
 
-class FakeInsertQueryBuilder {
+class FakeQueryBuilder {
   private valuesPayload?: Partial<CashbackPayment> & {
     userId: string;
     badgeId: string;
   };
+  private paymentId?: string;
 
   constructor(private readonly paymentStore: Map<string, CashbackPayment>) {}
 
   insert() {
+    return this;
+  }
+
+  update() {
+    return this;
+  }
+
+  set(payload: {
+    status: CashbackPaymentStatus;
+    failureReason: null;
+    attemptCount: () => string;
+  }) {
+    payload.attemptCount();
+
+    return this;
+  }
+
+  where(_condition: string, parameters: { paymentId: string }) {
+    this.paymentId = parameters.paymentId;
     return this;
   }
 
@@ -110,6 +181,15 @@ class FakeInsertQueryBuilder {
   }
 
   async execute() {
+    if (this.paymentId) {
+      const payment = this.findPaymentById(this.paymentId);
+      payment.status = CashbackPaymentStatus.Processing;
+      payment.failureReason = null;
+      payment.attemptCount += 1;
+
+      return { raw: [] };
+    }
+
     if (!this.valuesPayload) {
       throw new Error('Insert values were not provided');
     }
@@ -139,5 +219,15 @@ class FakeInsertQueryBuilder {
     this.paymentStore.set(key, payment);
 
     return { raw: [{ id: payment.id }] };
+  }
+
+  private findPaymentById(paymentId: string): CashbackPayment {
+    for (const payment of this.paymentStore.values()) {
+      if (payment.id === paymentId) {
+        return payment;
+      }
+    }
+
+    throw new Error('Cashback payment was not found');
   }
 }

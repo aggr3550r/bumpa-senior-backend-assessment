@@ -18,5 +18,6 @@ export enum CashbackProviderTransferStatus {
 }
 
 export interface CashbackProvider {
+  readonly providerName: string;
   sendCashback(request: SendCashbackRequest): Promise<SendCashbackResult>;
 }

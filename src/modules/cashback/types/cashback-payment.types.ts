@@ -11,3 +11,11 @@ export interface CreateCashbackPaymentResult {
   payment: CashbackPayment;
   created: boolean;
 }
+
+export interface RecordCashbackProviderResultInput {
+  paymentId: string;
+  provider: string;
+  providerReference?: string | null;
+  status: CashbackPayment['status'];
+  failureReason?: string | null;
+}

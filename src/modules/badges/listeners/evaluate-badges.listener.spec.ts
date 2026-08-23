@@ -37,7 +37,7 @@ describe('EvaluateBadgesListener', () => {
     expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
     expect(eventEmitter.emit).toHaveBeenCalledWith(
       BADGE_UNLOCKED_EVENT,
-      new BadgeUnlockedEvent('Beginner', user),
+      new BadgeUnlockedEvent('Beginner', user, beginnerBadge),
     );
   });
 
