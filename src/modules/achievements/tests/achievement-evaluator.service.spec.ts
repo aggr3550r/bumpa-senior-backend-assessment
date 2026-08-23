@@ -1,6 +1,6 @@
-import { AchievementEvaluatorService } from './achievement-evaluator.service';
-import { Achievement } from './entities/achievement.entity';
-import { UserAchievement } from './entities/user-achievement.entity';
+import { AchievementEvaluatorService } from '../achievement-evaluator.service';
+import { Achievement } from '../entities/achievement.entity';
+import { UserAchievement } from '../entities/user-achievement.entity';
 
 describe('AchievementEvaluatorService', () => {
   const userId = 'd81cdd5c-2c45-4478-b0a5-b261b59c87b1';

@@ -5,7 +5,7 @@ import { UserAchievement } from '../achievements/entities/user-achievement.entit
 import {
   BadgeProgressionResult,
   EvaluateBadgeProgressionInput,
-} from './badge-progression.types';
+} from './types/badge-progression.types';
 import { Badge } from './entities/badge.entity';
 import { UserBadge } from './entities/user-badge.entity';
 

@@ -1,7 +1,5 @@
-import { User } from '../../users/entities/user.entity';
-
 export interface SendCashbackRequest {
-  user: User;
+  userId: string;
   amount: number;
   reference: string;
 }
@@ -14,6 +12,7 @@ export interface SendCashbackResult {
 }
 
 export enum CashbackProviderTransferStatus {
+  Pending = 'pending',
   Succeeded = 'succeeded',
   Failed = 'failed',
 }

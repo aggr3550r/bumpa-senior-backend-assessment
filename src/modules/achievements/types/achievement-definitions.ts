@@ -1,4 +1,4 @@
-import { AchievementDefinition } from '../../progression/progression-definition.types';
+import { AchievementDefinition } from '../../../progression/progression-definition.types';
 
 export const PURCHASE_ACHIEVEMENT_GROUP = 'purchases';
 

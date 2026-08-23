@@ -3,8 +3,8 @@ import {
   ConflictException,
 } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
-import { User } from './entities/user.entity';
-import { UsersService } from './users.service';
+import { User } from '../entities/user.entity';
+import { UsersService } from '../users.service';
 
 describe('UsersService', () => {
   it('lists users with newest users first', async () => {
@@ -20,27 +20,41 @@ describe('UsersService', () => {
   });
 
   it('normalizes email before creating a user', async () => {
-    const { service, repository } = createServiceHarness();
+    const { service, repository, bankAccountVerifier } = createServiceHarness();
 
-    await service.createUser({
-      email: ' ADA@EXAMPLE.COM ',
-      firstName: 'Ada',
-      lastName: 'Customer',
+    await service.createUser(buildCreateUserInput());
+
+    expect(bankAccountVerifier.verifyInput).toEqual({
+      accountNumber: '0123456789',
+      bankCode: '044',
+      currency: 'NGN',
     });
-
     expect(repository.savedUser).toMatchObject({
       email: 'ada@example.com',
       firstName: 'Ada',
       lastName: 'Customer',
+      accountNumber: '0123456789',
+      bankCode: '044',
+      accountName: 'ADA CUSTOMER',
+      currency: 'NGN',
+      payoutRecipientReference: null,
     });
   });
 
-  it('rejects blank emails', async () => {
+  it('requires complete bank account details', async () => {
     const { service } = createServiceHarness();
 
-    await expect(service.createUser({ email: '   ' })).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.createUser({
+        ...buildCreateUserInput(),
+        bankAccountDetails: {
+          accountNumber: '0123456789',
+          bankCode: '',
+          accountName: 'Ada Customer',
+          currency: 'NGN',
+        },
+      }),
+    ).rejects.toBeInstanceOf(BadRequestException);
   });
 
   it('returns a conflict when email already exists', async () => {
@@ -48,7 +62,7 @@ describe('UsersService', () => {
     repository.saveError = buildUniqueEmailViolation();
 
     await expect(
-      service.createUser({ email: 'ada@example.com' }),
+      service.createUser(buildCreateUserInput()),
     ).rejects.toBeInstanceOf(ConflictException);
   });
 
@@ -57,17 +71,33 @@ describe('UsersService', () => {
     repository.saveError = new Error('database unavailable');
 
     await expect(
-      service.createUser({ email: 'ada@example.com' }),
+      service.createUser(buildCreateUserInput()),
     ).rejects.toThrow('database unavailable');
   });
 });
 
 function createServiceHarness() {
   const repository = new FakeUserRepository();
+  const bankAccountVerifier = new FakeBankAccountVerifier();
 
   return {
     repository,
-    service: new UsersService(repository as never),
+    bankAccountVerifier,
+    service: new UsersService(repository as never, bankAccountVerifier as never),
+  };
+}
+
+function buildCreateUserInput() {
+  return {
+    email: ' ADA@EXAMPLE.COM ',
+    firstName: 'Ada',
+    lastName: 'Customer',
+    bankAccountDetails: {
+      accountNumber: '0123456789',
+      bankCode: '044',
+      accountName: 'Customer Supplied Name',
+      currency: 'ngn',
+    },
   };
 }
 
@@ -101,5 +131,24 @@ class FakeUserRepository {
     this.savedUser = user;
 
     return user;
+  }
+}
+
+class FakeBankAccountVerifier {
+  verifyInput?: unknown;
+
+  async verify(input: {
+    accountNumber: string;
+    bankCode: string;
+    currency: string;
+  }) {
+    this.verifyInput = input;
+
+    return {
+      accountNumber: input.accountNumber,
+      bankCode: input.bankCode,
+      accountName: 'ADA CUSTOMER',
+      currency: input.currency,
+    };
   }
 }

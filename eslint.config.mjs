@@ -14,10 +14,13 @@ export default [
         sourceType: 'module',
       },
       globals: {
+        afterEach: 'readonly',
         beforeEach: 'readonly',
         console: 'readonly',
         describe: 'readonly',
         expect: 'readonly',
+        fetch: 'readonly',
+        global: 'readonly',
         it: 'readonly',
         jest: 'readonly',
         process: 'readonly',

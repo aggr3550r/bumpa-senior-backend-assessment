@@ -1,0 +1,1 @@
+export const BANK_ACCOUNT_VERIFIER = Symbol('BANK_ACCOUNT_VERIFIER');

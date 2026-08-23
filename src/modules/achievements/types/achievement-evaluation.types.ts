@@ -1,4 +1,4 @@
-import { Achievement } from './entities/achievement.entity';
+import { Achievement } from '../entities/achievement.entity';
 
 export interface EvaluatePurchaseAchievementsInput {
   userId: string;

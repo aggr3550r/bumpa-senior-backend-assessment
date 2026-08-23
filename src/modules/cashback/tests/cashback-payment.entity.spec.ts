@@ -1,6 +1,6 @@
 import { getMetadataArgsStorage } from 'typeorm';
-import { CashbackPaymentStatus } from './cashback-payment-status.enum';
-import { CashbackPayment } from './entities/cashback-payment.entity';
+import { CashbackPayment } from '../entities/cashback-payment.entity';
+import { CashbackPaymentStatus } from '../types/cashback-payment-status.enum';
 
 describe('CashbackPayment entity', () => {
   it('prevents duplicate cashback entitlements for the same user and badge', () => {

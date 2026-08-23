@@ -1,4 +1,4 @@
-import { CashbackPayment } from './entities/cashback-payment.entity';
+import { CashbackPayment } from '../entities/cashback-payment.entity';
 
 export interface CreateCashbackPaymentInput {
   userId: string;
