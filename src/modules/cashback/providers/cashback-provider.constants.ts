@@ -1,0 +1,1 @@
+export const CASHBACK_PROVIDER = Symbol('CASHBACK_PROVIDER');
