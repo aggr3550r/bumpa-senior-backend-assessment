@@ -1,7 +1,7 @@
-import { UserAchievement } from '../achievements/entities/user-achievement.entity';
-import { BadgeProgressionService } from './badge-progression.service';
-import { Badge } from './entities/badge.entity';
-import { UserBadge } from './entities/user-badge.entity';
+import { UserAchievement } from '../../achievements/entities/user-achievement.entity';
+import { BadgeProgressionService } from '../badge-progression.service';
+import { Badge } from '../entities/badge.entity';
+import { UserBadge } from '../entities/user-badge.entity';
 
 describe('BadgeProgressionService', () => {
   const userId = 'f2c3aa95-35f9-4a78-b245-d750b6a80ea2';

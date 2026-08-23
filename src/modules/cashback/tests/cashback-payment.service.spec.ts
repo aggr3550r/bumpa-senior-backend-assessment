@@ -1,6 +1,6 @@
-import { CashbackPaymentService } from './cashback-payment.service';
-import { CashbackPaymentStatus } from './cashback-payment-status.enum';
-import { CashbackPayment } from './entities/cashback-payment.entity';
+import { CashbackPaymentService } from '../cashback-payment.service';
+import { CashbackPayment } from '../entities/cashback-payment.entity';
+import { CashbackPaymentStatus } from '../types/cashback-payment-status.enum';
 
 describe('CashbackPaymentService', () => {
   const input = {

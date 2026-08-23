@@ -1,4 +1,4 @@
-import { Badge } from './entities/badge.entity';
+import { Badge } from '../entities/badge.entity';
 
 export interface EvaluateBadgeProgressionInput {
   userId: string;

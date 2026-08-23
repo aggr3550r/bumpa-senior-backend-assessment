@@ -9,7 +9,7 @@ import {
 import { TimestampedEntity } from '../../../common/entities/timestamped.entity';
 import { Badge } from '../../badges/entities/badge.entity';
 import { User } from '../../users/entities/user.entity';
-import { CashbackPaymentStatus } from '../cashback-payment-status.enum';
+import { CashbackPaymentStatus } from '../types/cashback-payment-status.enum';
 
 @Entity({ name: 'cashback_payments' })
 @Unique('UQ_cashback_payments_user_badge', ['userId', 'badgeId'])

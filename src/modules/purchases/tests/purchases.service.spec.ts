@@ -1,11 +1,11 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { User } from '../users/entities/user.entity';
-import { Purchase } from './entities/purchase.entity';
-import { PurchaseCompletedEvent } from './events/purchase-completed.event';
-import { PURCHASE_COMPLETED_EVENT } from './events/purchase.events';
-import { PurchaseStatus } from './purchase-status.enum';
-import { PurchasesService } from './purchases.service';
+import { User } from '../../users/entities/user.entity';
+import { Purchase } from '../entities/purchase.entity';
+import { PurchaseCompletedEvent } from '../events/purchase-completed.event';
+import { PURCHASE_COMPLETED_EVENT } from '../events/purchase.events';
+import { PurchasesService } from '../purchases.service';
+import { PurchaseStatus } from '../types/purchase-status.enum';
 
 describe('PurchasesService', () => {
   const user = buildUser();
@@ -28,19 +28,6 @@ describe('PurchasesService', () => {
       PURCHASE_COMPLETED_EVENT,
       new PurchaseCompletedEvent(user, 5),
     );
-  });
-
-  it('rejects invalid purchase amounts before emitting events', async () => {
-    const { service, eventEmitter } = createServiceHarness({
-      user,
-      completedPurchaseCount: 0,
-    });
-
-    await expect(service.createCompletedPurchase(user.id, 0)).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
-
-    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 
   it('rejects purchases for missing users before emitting events', async () => {

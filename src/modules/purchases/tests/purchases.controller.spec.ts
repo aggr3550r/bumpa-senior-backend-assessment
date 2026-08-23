@@ -1,6 +1,6 @@
 import { HttpStatus } from '@nestjs/common';
-import { PurchasesController } from './purchases.controller';
-import { PurchasesService } from './purchases.service';
+import { PurchasesController } from '../purchases.controller';
+import { PurchasesService } from '../purchases.service';
 
 describe('PurchasesController', () => {
   it('wraps created purchases in a response model', async () => {

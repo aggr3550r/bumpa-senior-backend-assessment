@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
-import { achievementDefinitions } from '../../modules/achievements/achievement-definitions';
-import { badgeDefinitions } from '../../modules/badges/badge-definitions';
+import { achievementDefinitions } from '../../modules/achievements/types/achievement-definitions';
+import { badgeDefinitions } from '../../modules/badges/types/badge-definitions';
 
 export class SeedProgressionDefinitions1787396460000
   implements MigrationInterface

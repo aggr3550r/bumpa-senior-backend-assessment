@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
-import { PURCHASE_ACHIEVEMENT_GROUP } from './achievement-definitions';
+import { PURCHASE_ACHIEVEMENT_GROUP } from './types/achievement-definitions';
 import {
   AchievementEvaluationResult,
   EvaluatePurchaseAchievementsInput,
-} from './achievement-evaluation.types';
+} from './types/achievement-evaluation.types';
 import { Achievement } from './entities/achievement.entity';
 import { UserAchievement } from './entities/user-achievement.entity';
 

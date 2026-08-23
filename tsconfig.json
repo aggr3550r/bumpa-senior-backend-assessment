@@ -17,6 +17,7 @@
     "noImplicitAny": false,
     "noUnusedLocals": true,
     "noUnusedParameters": true,
+    "types": ["node", "jest"],
     "forceConsistentCasingInFileNames": true
   }
 }

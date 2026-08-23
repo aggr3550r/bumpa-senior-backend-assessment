@@ -1,7 +1,7 @@
 import { HttpStatus } from '@nestjs/common';
-import { User } from './entities/user.entity';
-import { UsersController } from './users.controller';
-import { UsersService } from './users.service';
+import { User } from '../entities/user.entity';
+import { UsersController } from '../users.controller';
+import { UsersService } from '../users.service';
 
 describe('UsersController', () => {
   it('wraps listed users in a response model', async () => {
@@ -26,7 +26,15 @@ describe('UsersController', () => {
     } as unknown as UsersService);
 
     await expect(
-      controller.createUser({ email: 'ada@example.com' }),
+      controller.createUser({
+        email: 'ada@example.com',
+        bankAccountDetails: {
+          accountNumber: '0123456789',
+          bankCode: '044',
+          accountName: 'Ada Customer',
+          currency: 'NGN',
+        },
+      }),
     ).resolves.toEqual({
       status: true,
       statusCode: HttpStatus.CREATED,
@@ -43,6 +51,11 @@ function buildUser(): User {
     email: 'ada@example.com',
     firstName: 'Ada',
     lastName: 'Customer',
+    accountNumber: '0123456789',
+    bankCode: '044',
+    accountName: 'ADA CUSTOMER',
+    currency: 'NGN',
+    payoutRecipientReference: null,
     createdAt: new Date(),
     updatedAt: new Date(),
     deletedAt: null,

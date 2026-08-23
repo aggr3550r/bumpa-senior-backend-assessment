@@ -2,11 +2,13 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { EventEmitterModule } from '@nestjs/event-emitter';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { loadEnv } from './env';
 import { AchievementsModule } from './modules/achievements/achievements.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { BadgesModule } from './modules/badges/badges.module';
 import { CashbackModule } from './modules/cashback/cashback.module';
+import { IntegrationsModule } from './integrations/integrations.module';
 import { PurchasesModule } from './modules/purchases/purchases.module';
 import { UsersModule } from './modules/users/users.module';
 
@@ -14,6 +16,7 @@ import { UsersModule } from './modules/users/users.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      validate: loadEnv,
     }),
     EventEmitterModule.forRoot(),
     TypeOrmModule.forRootAsync({
@@ -26,13 +29,14 @@ import { UsersModule } from './modules/users/users.module';
         password: configService.get<string>('DATABASE_PASSWORD', 'bumpa'),
         database: configService.get<string>('DATABASE_NAME', 'bumpa_ecommerce'),
         autoLoadEntities: true,
-        synchronize: configService.get<string>('DATABASE_SYNCHRONIZE') === 'true',
+        synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
         ssl:
-          configService.get<string>('DATABASE_SSL') === 'true'
+          configService.get<boolean>('DATABASE_SSL', false)
             ? { rejectUnauthorized: false }
             : false,
       }),
     }),
+    IntegrationsModule,
     UsersModule,
     AchievementsModule,
     BadgesModule,

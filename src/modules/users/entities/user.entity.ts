@@ -15,6 +15,21 @@ export class User extends TimestampedEntity {
   @Column({ name: 'last_name', type: 'varchar', nullable: true })
   lastName?: string | null;
 
+  @Column({ name: 'account_number', type: 'varchar', nullable: true })
+  accountNumber?: string | null;
+
+  @Column({ name: 'bank_code', type: 'varchar', nullable: true })
+  bankCode?: string | null;
+
+  @Column({ name: 'account_name', type: 'varchar', nullable: true })
+  accountName?: string | null;
+
+  @Column({ type: 'varchar', nullable: true })
+  currency?: string | null;
+
+  @Column({ name: 'payout_recipient_reference', type: 'varchar', nullable: true })
+  payoutRecipientReference?: string | null;
+
   @OneToMany(() => UserAchievement, (userAchievement) => userAchievement.user)
   achievements: UserAchievement[];
 

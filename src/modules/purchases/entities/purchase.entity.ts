@@ -1,7 +1,7 @@
 import { Column, Entity, JoinColumn, ManyToOne } from 'typeorm';
 import { TimestampedEntity } from '../../../common/entities/timestamped.entity';
 import { User } from '../../users/entities/user.entity';
-import { PurchaseStatus } from '../purchase-status.enum';
+import { PurchaseStatus } from '../types/purchase-status.enum';
 
 @Entity({ name: 'purchases' })
 export class Purchase extends TimestampedEntity {

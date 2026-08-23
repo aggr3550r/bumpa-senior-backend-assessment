@@ -1,11 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CashbackPaymentStatus } from './cashback-payment-status.enum';
+import { CashbackPaymentStatus } from './types/cashback-payment-status.enum';
 import {
   CreateCashbackPaymentInput,
   CreateCashbackPaymentResult,
-} from './cashback-payment.types';
+} from './types/cashback-payment.types';
 import { CashbackPayment } from './entities/cashback-payment.entity';
 
 @Injectable()

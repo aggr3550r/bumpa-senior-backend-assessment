@@ -1,5 +1,5 @@
-import { achievementDefinitions } from '../modules/achievements/achievement-definitions';
-import { badgeDefinitions } from '../modules/badges/badge-definitions';
+import { achievementDefinitions } from '../modules/achievements/types/achievement-definitions';
+import { badgeDefinitions } from '../modules/badges/types/badge-definitions';
 
 describe('progression definitions', () => {
   it('keeps purchase achievements in deterministic progression order', () => {
