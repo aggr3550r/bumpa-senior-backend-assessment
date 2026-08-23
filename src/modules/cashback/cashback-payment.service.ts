@@ -5,6 +5,7 @@ import { CashbackPaymentStatus } from './types/cashback-payment-status.enum';
 import {
   CreateCashbackPaymentInput,
   CreateCashbackPaymentResult,
+  RecordCashbackProviderResultInput,
 } from './types/cashback-payment.types';
 import { CashbackPayment } from './entities/cashback-payment.entity';
 
@@ -53,6 +54,33 @@ export class CashbackPaymentService {
       payment,
       created: insertResult.raw.length > 0,
     };
+  }
+
+  async markCashbackAttemptStarted(paymentId: string): Promise<void> {
+    await this.cashbackPaymentRepository
+      .createQueryBuilder()
+      .update(CashbackPayment)
+      .set({
+        status: CashbackPaymentStatus.Processing,
+        failureReason: null,
+        attemptCount: () => '"attempt_count" + 1',
+      })
+      .where('id = :paymentId', { paymentId })
+      .execute();
+  }
+
+  async recordProviderResult(
+    input: RecordCashbackProviderResultInput,
+  ): Promise<void> {
+    await this.cashbackPaymentRepository.update(
+      { id: input.paymentId },
+      {
+        provider: input.provider,
+        providerReference: input.providerReference ?? null,
+        status: input.status,
+        failureReason: input.failureReason ?? null,
+      },
+    );
   }
 
   private buildReference(userId: string, badgeId: string): string {

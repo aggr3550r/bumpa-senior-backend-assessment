@@ -3,7 +3,11 @@ import { OnEvent } from '@nestjs/event-emitter';
 import { BadgeUnlockedEvent } from '../../badges/events/badge-unlocked.event';
 import { BADGE_UNLOCKED_EVENT } from '../../badges/events/badge.events';
 import { CASHBACK_PROVIDER } from '../providers/cashback-provider.constants';
-import { CashbackProvider } from '../providers/cashback-provider.types';
+import {
+  CashbackProvider,
+  CashbackProviderTransferStatus,
+  SendCashbackResult,
+} from '../providers/cashback-provider.types';
 import { CashbackPaymentStatus } from '../types/cashback-payment-status.enum';
 import { CashbackPaymentService } from '../cashback-payment.service';
 
@@ -47,10 +51,47 @@ export class ProcessBadgeUnlockedCashbackListener {
       return;
     }
 
-    await this.cashbackProvider.sendCashback({
-      userId: event.user.id,
-      amount: BADGE_CASHBACK_AMOUNT,
-      reference: payment.reference,
-    });
+    await this.cashbackPayments.markCashbackAttemptStarted(payment.id);
+
+    try {
+      const result = await this.cashbackProvider.sendCashback({
+        userId: event.user.id,
+        amount: BADGE_CASHBACK_AMOUNT,
+        reference: payment.reference,
+      });
+
+      await this.cashbackPayments.recordProviderResult({
+        paymentId: payment.id,
+        provider: result.provider,
+        providerReference: result.providerReference,
+        status: this.toPaymentStatus(result.status),
+        failureReason: result.failureReason,
+      });
+    } catch (error) {
+      const failureReason =
+        error instanceof Error ? error.message : 'Cashback provider failed';
+
+      await this.cashbackPayments.recordProviderResult({
+        paymentId: payment.id,
+        provider: this.cashbackProvider.providerName,
+        providerReference: null,
+        status: CashbackPaymentStatus.Failed,
+        failureReason,
+      });
+    }
+  }
+
+  private toPaymentStatus(
+    status: SendCashbackResult['status'],
+  ): CashbackPaymentStatus {
+    if (status === CashbackProviderTransferStatus.Succeeded) {
+      return CashbackPaymentStatus.Succeeded;
+    }
+
+    if (status === CashbackProviderTransferStatus.Pending) {
+      return CashbackPaymentStatus.Processing;
+    }
+
+    return CashbackPaymentStatus.Failed;
   }
 }
