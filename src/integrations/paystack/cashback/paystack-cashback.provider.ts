@@ -28,6 +28,9 @@ interface PaystackTransferRecipientResponse {
   };
 }
 
+const THIRD_PARTY_PAYOUT_RESTRICTION_MESSAGE =
+  'You cannot initiate third party payouts at this time';
+
 @Injectable()
 export class PaystackCashbackProvider implements CashbackProvider {
   readonly providerName = 'paystack';
@@ -35,6 +38,7 @@ export class PaystackCashbackProvider implements CashbackProvider {
   private readonly logger = new Logger(PaystackCashbackProvider.name);
   private readonly baseUrl: string;
   private readonly currency: string;
+  private readonly nodeEnv: string;
   private readonly secretKey: string;
   private readonly source: string;
 
@@ -48,6 +52,7 @@ export class PaystackCashbackProvider implements CashbackProvider {
       'https://api.paystack.co',
     );
     this.currency = this.configService.get<string>('PAYSTACK_CURRENCY', 'NGN');
+    this.nodeEnv = this.configService.get<string>('NODE_ENV', 'development');
     this.secretKey = this.configService.get<string>('PAYSTACK_SECRET_KEY', '');
     this.source = this.configService.get<string>(
       'PAYSTACK_TRANSFER_SOURCE',
@@ -108,11 +113,34 @@ export class PaystackCashbackProvider implements CashbackProvider {
       );
 
       if (!response.ok || payload?.status !== true || !payload.data) {
+        const failureReason =
+          payload?.message ?? 'Paystack transfer was rejected';
+
+        if (this.shouldMockRestrictedPayout(failureReason)) {
+          /*
+           * Local development cannot always exercise real Paystack transfers:
+           * unverified Paystack businesses are blocked from third-party payouts.
+           * For demo/manual testing only, treat that exact restriction as a
+           * successful provider response while keeping production/test behavior
+           * tied to Paystack's real result.
+           */
+          this.logger.warn(
+            `Mocking Paystack transfer success in development due to payout restriction: reference=${formattedReference}`,
+          );
+
+          return {
+            provider: 'paystack',
+            providerReference: `mock_${formattedReference}`,
+            status: CashbackProviderTransferStatus.Succeeded,
+            failureReason: null,
+          };
+        }
+
         this.logger.error(
-          `Paystack transfer rejected: httpStatus=${response.status}, message=${payload?.message ?? 'Paystack transfer was rejected'}`,
+          `Paystack transfer rejected: httpStatus=${response.status}, message=${failureReason}`,
         );
 
-        return this.failed(payload?.message ?? 'Paystack transfer was rejected');
+        return this.failed(failureReason);
       }
 
       return {
@@ -247,6 +275,13 @@ export class PaystackCashbackProvider implements CashbackProvider {
 
   private toMinorCurrencyUnit(amount: number): number {
     return amount * 100;
+  }
+
+  private shouldMockRestrictedPayout(failureReason: string): boolean {
+    return (
+      this.nodeEnv === 'development' &&
+      failureReason === THIRD_PARTY_PAYOUT_RESTRICTION_MESSAGE
+    );
   }
 
   private maskAccountNumber(accountNumber: string): string {
