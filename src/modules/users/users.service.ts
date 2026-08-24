@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { QueryFailedError, Repository } from 'typeorm';
@@ -13,6 +14,8 @@ import { User } from './entities/user.entity';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
+
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
@@ -21,6 +24,8 @@ export class UsersService {
   ) {}
 
   findUsers(): Promise<User[]> {
+    this.logger.debug('Fetching users ordered by newest first');
+
     return this.userRepository.find({
       order: {
         createdAt: 'DESC',
@@ -29,14 +34,24 @@ export class UsersService {
   }
 
   async createUser(input: CreateUserDto): Promise<User> {
+    const email = input.email.trim().toLowerCase();
+    this.logger.log(`Creating user: email=${email}`);
+
     const bankAccountDetails = this.validateBankAccountDetails(input);
+    this.logger.debug(
+      `Verifying bank account before user creation: email=${email}, bankCode=${bankAccountDetails.bankCode}, currency=${bankAccountDetails.currency}`,
+    );
+
     const verifiedBankAccount =
       await this.bankAccountVerifier.verify(bankAccountDetails);
+    this.logger.log(
+      `Bank account verified for user creation: email=${email}, resolvedAccountName=${verifiedBankAccount.accountName}`,
+    );
 
     // The verifier is the source of truth for the payout account name; firstName
     // and lastName remain the user's profile names and are intentionally untouched.
     const user = this.userRepository.create({
-      email: input.email.trim().toLowerCase(),
+      email,
       firstName: input.firstName ?? null,
       lastName: input.lastName ?? null,
       accountNumber: verifiedBankAccount.accountNumber,
@@ -47,9 +62,15 @@ export class UsersService {
     });
 
     try {
-      return await this.userRepository.save(user);
+      const createdUser = await this.userRepository.save(user);
+
+      this.logger.log(`User created: userId=${createdUser.id}, email=${email}`);
+
+      return createdUser;
     } catch (error) {
       if (this.isUniqueViolation(error, 'UQ_users_email')) {
+        this.logger.warn(`User creation rejected; email already exists: ${email}`);
+
         throw new ConflictException('email already exists');
       }
 

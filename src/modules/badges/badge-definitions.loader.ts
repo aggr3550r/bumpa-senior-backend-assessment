@@ -24,10 +24,15 @@ export class BadgeDefinitionsLoader implements OnApplicationBootstrap {
         true,
       )
     ) {
+      this.logger.log('Badge definitions loader disabled by configuration');
+
       return;
     }
 
     const definitions = this.loadDefinitions();
+    this.logger.log(
+      `Syncing badge definitions from resource file: count=${definitions.length}`,
+    );
 
     await this.badgeRepository.manager.transaction(async (manager) => {
       /*

@@ -28,10 +28,15 @@ export class AchievementDefinitionsLoader implements OnApplicationBootstrap {
         true,
       )
     ) {
+      this.logger.log('Achievement definitions loader disabled by configuration');
+
       return;
     }
 
     const definitions = this.loadDefinitions();
+    this.logger.log(
+      `Syncing achievement definitions from resource file: count=${definitions.length}`,
+    );
 
     await this.achievementRepository.manager.transaction(async (manager) => {
       /*

@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { CashbackPaymentStatus } from './types/cashback-payment-status.enum';
@@ -11,6 +11,8 @@ import { CashbackPayment } from './entities/cashback-payment.entity';
 
 @Injectable()
 export class CashbackPaymentService {
+  private readonly logger = new Logger(CashbackPaymentService.name);
+
   constructor(
     @InjectRepository(CashbackPayment)
     private readonly cashbackPaymentRepository: Repository<CashbackPayment>,
@@ -20,6 +22,9 @@ export class CashbackPaymentService {
     input: CreateCashbackPaymentInput,
   ): Promise<CreateCashbackPaymentResult> {
     const reference = this.buildReference(input.userId, input.badgeId);
+    this.logger.debug(
+      `Resolving cashback entitlement: userId=${input.userId}, badgeId=${input.badgeId}, amount=${input.amount}, provider=${input.provider}, reference=${reference}`,
+    );
 
     /*
      * This creates the cashback entitlement only; no external provider is
@@ -49,10 +54,15 @@ export class CashbackPaymentService {
         badgeId: input.badgeId,
       },
     });
+    const created = insertResult.raw.length > 0;
+
+    this.logger.log(
+      `Cashback entitlement ${created ? 'created' : 'reused'}: paymentId=${payment.id}, userId=${input.userId}, badgeId=${input.badgeId}, status=${payment.status}, reference=${payment.reference}`,
+    );
 
     return {
       payment,
-      created: insertResult.raw.length > 0,
+      created,
     };
   }
 
@@ -95,6 +105,9 @@ export class CashbackPaymentService {
       .returning('id')
       .execute();
 
+    this.logger.log(
+      `Cashback attempt marked processing: paymentId=${paymentId}`,
+    );
     return result.raw.length > 0;
   }
 
@@ -109,6 +122,10 @@ export class CashbackPaymentService {
         status: input.status,
         failureReason: input.failureReason ?? null,
       },
+    );
+
+    this.logger.log(
+      `Cashback provider result persisted: paymentId=${input.paymentId}, provider=${input.provider}, status=${input.status}, providerReference=${input.providerReference ?? 'null'}, failureReason=${input.failureReason ?? 'null'}`,
     );
   }
 

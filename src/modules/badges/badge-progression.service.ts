@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { UserAchievement } from '../achievements/entities/user-achievement.entity';
@@ -11,6 +11,8 @@ import { UserBadge } from './entities/user-badge.entity';
 
 @Injectable()
 export class BadgeProgressionService {
+  private readonly logger = new Logger(BadgeProgressionService.name);
+
   constructor(
     @InjectRepository(UserBadge)
     private readonly userBadgeRepository: Repository<UserBadge>,
@@ -19,6 +21,10 @@ export class BadgeProgressionService {
   async evaluateBadgeProgression(
     input: EvaluateBadgeProgressionInput,
   ): Promise<BadgeProgressionResult> {
+    this.logger.debug(
+      `Evaluating badge progression: userId=${input.userId}`,
+    );
+
     return this.userBadgeRepository.manager.transaction((manager) =>
       this.evaluateUserProgression(manager, input.userId),
     );
@@ -39,6 +45,9 @@ export class BadgeProgressionService {
     const unlockedAchievementCount = await userAchievementRepository.count({
       where: { userId },
     });
+    this.logger.debug(
+      `Unlocked achievement count resolved for badge progression: userId=${userId}, unlockedAchievementCount=${unlockedAchievementCount}`,
+    );
 
     const badges = await badgeRepository.find({
       order: {
@@ -78,6 +87,13 @@ export class BadgeProgressionService {
       if (insertedBadge) {
         insertedBadges.push(insertedBadge);
         unlockedBadgeIds.add(insertedBadge.id);
+        this.logger.log(
+          `Badge unlocked: userId=${userId}, badgeId=${insertedBadge.id}, badgeName=${insertedBadge.name}, requiredAchievementCount=${insertedBadge.requiredAchievementCount}`,
+        );
+      } else {
+        this.logger.debug(
+          `Badge already unlocked; skipping duplicate unlock: userId=${userId}, badgeId=${badge.id}, badgeName=${badge.name}`,
+        );
       }
     }
 
@@ -89,6 +105,10 @@ export class BadgeProgressionService {
      */
     const nextBadge =
       badges.find((badge) => !unlockedBadgeIds.has(badge.id)) ?? null;
+
+    this.logger.debug(
+      `Badge progression evaluation completed: userId=${userId}, newlyUnlockedBadge=${newlyUnlockedBadge?.name ?? 'none'}, nextBadge=${nextBadge?.name ?? 'none'}`,
+    );
 
     return {
       unlockedAchievementCount,
