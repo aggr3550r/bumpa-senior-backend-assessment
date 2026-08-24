@@ -90,6 +90,29 @@ describe('UserAchievementProgressQueryService', () => {
     ]);
   });
 
+  it('avoids N+1 lookups while assembling progress', async () => {
+    const {
+      achievementRepository,
+      badgeRepository,
+      service,
+      userAchievementRepository,
+      userBadgeRepository,
+    } = createServiceHarness({
+      achievements,
+      badges,
+      userAchievementIds: [achievements[0].id],
+      userBadgeIds: [badges[0].id],
+    });
+
+    await service.getUserAchievementProgress(userId);
+
+    expect(achievementRepository.findCalls).toBe(1);
+    expect(userAchievementRepository.findCalls).toBe(1);
+    expect(badgeRepository.findCalls).toBe(1);
+    expect(userBadgeRepository.findCalls).toBe(1);
+  });
+
+
   it('returns current badge, next badge, and remaining count', async () => {
     const { service } = createServiceHarness({
       achievements,
@@ -159,6 +182,8 @@ function createServiceHarness(options: {
   );
 
   return {
+    achievementRepository,
+    badgeRepository,
     service: new UserAchievementProgressQueryService(
       userRepository as never,
       achievementRepository as never,
@@ -166,6 +191,8 @@ function createServiceHarness(options: {
       badgeRepository as never,
       userBadgeRepository as never,
     ),
+    userAchievementRepository,
+    userBadgeRepository,
   };
 }
 
@@ -210,9 +237,13 @@ function buildBadge(input: {
 }
 
 class FakeAchievementRepository {
+  findCalls = 0;
+
   constructor(private readonly achievements: Achievement[]) {}
 
   async find(): Promise<Achievement[]> {
+    this.findCalls += 1;
+
     return [...this.achievements].sort((left, right) => {
       const groupOrder = left.group.localeCompare(right.group);
 
@@ -222,6 +253,8 @@ class FakeAchievementRepository {
 }
 
 class FakeUserAchievementRepository {
+  findCalls = 0;
+
   constructor(
     private readonly userId: string,
     private readonly achievementIds: string[],
@@ -230,6 +263,8 @@ class FakeUserAchievementRepository {
   async find(options: {
     where: { userId: string };
   }): Promise<Pick<UserAchievement, 'achievementId'>[]> {
+    this.findCalls += 1;
+
     if (options.where.userId !== this.userId) {
       return [];
     }
@@ -239,14 +274,20 @@ class FakeUserAchievementRepository {
 }
 
 class FakeBadgeRepository {
+  findCalls = 0;
+
   constructor(private readonly badges: Badge[]) {}
 
   async find(): Promise<Badge[]> {
+    this.findCalls += 1;
+
     return [...this.badges].sort((left, right) => left.ordering - right.ordering);
   }
 }
 
 class FakeUserBadgeRepository {
+  findCalls = 0;
+
   constructor(
     private readonly userId: string,
     private readonly badgeIds: string[],
@@ -255,6 +296,8 @@ class FakeUserBadgeRepository {
   async find(options: {
     where: { userId: string };
   }): Promise<Pick<UserBadge, 'badgeId'>[]> {
+    this.findCalls += 1;
+
     if (options.where.userId !== this.userId) {
       return [];
     }

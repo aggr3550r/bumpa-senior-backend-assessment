@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { OnEvent } from '@nestjs/event-emitter';
 import { BadgeUnlockedEvent } from '../../badges/events/badge-unlocked.event';
 import { BADGE_UNLOCKED_EVENT } from '../../badges/events/badge.events';
@@ -19,6 +20,7 @@ export class ProcessBadgeUnlockedCashbackListener {
 
   constructor(
     private readonly cashbackPayments: CashbackPaymentService,
+    private readonly configService: ConfigService,
     @Inject(CASHBACK_PROVIDER)
     private readonly cashbackProvider: CashbackProvider,
   ) {}
@@ -58,10 +60,17 @@ export class ProcessBadgeUnlockedCashbackListener {
     /*
      * A fresh entitlement should be sent once. A failed entitlement may be
      * retried safely because the same persisted reference is reused as the
-     * provider idempotency key. Pending/processing rows are left alone here so a
-     * duplicate BadgeUnlocked event cannot double-send while work is in flight.
+     * provider idempotency key. Pending rows are left alone here; processing
+     * rows continue to the atomic claim so stale attempts can recover after a
+     * crash while fresh attempts still reject duplicate work.
      */
-    if (!created && payment.status !== CashbackPaymentStatus.Failed) {
+    if (
+      !created &&
+      ![
+        CashbackPaymentStatus.Failed,
+        CashbackPaymentStatus.Processing,
+      ].includes(payment.status)
+    ) {
       this.logger.log(
         `Skipping duplicate cashback event while payment is ${payment.status}: paymentId=${payment.id}`,
       );
@@ -69,7 +78,20 @@ export class ProcessBadgeUnlockedCashbackListener {
       return;
     }
 
-    await this.cashbackPayments.markCashbackAttemptStarted(payment.id);
+    const claimedAttempt =
+      await this.cashbackPayments.markCashbackAttemptStarted(
+        payment.id,
+        this.getStaleProcessingCutoff(),
+      );
+
+    if (!claimedAttempt) {
+      this.logger.log(
+        `Skipping cashback because another worker already claimed this attempt: paymentId=${payment.id}`,
+      );
+
+      return;
+    }
+
     this.logger.log(
       `Cashback provider attempt started: paymentId=${payment.id}, amount=${BADGE_CASHBACK_AMOUNT}, reference=${payment.reference}`,
     );
@@ -124,5 +146,14 @@ export class ProcessBadgeUnlockedCashbackListener {
     }
 
     return CashbackPaymentStatus.Failed;
+  }
+
+  private getStaleProcessingCutoff(): Date {
+    const staleAfterSeconds = this.configService.get<number>(
+      'CASHBACK_PROCESSING_STALE_AFTER_SECONDS',
+      300,
+    );
+
+    return new Date(Date.now() - staleAfterSeconds * 1000);
   }
 }
