@@ -31,7 +31,7 @@ export class EvaluateBadgesListener {
      * side effects. Cashback processing should react to this event later.
      */
     if (result.newlyUnlockedBadge) {
-      this.eventEmitter.emit(
+      await this.eventEmitter.emitAsync(
         BADGE_UNLOCKED_EVENT,
         new BadgeUnlockedEvent(
           result.newlyUnlockedBadge.name,

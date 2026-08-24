@@ -34,8 +34,8 @@ describe('EvaluateBadgesListener', () => {
       new AchievementUnlockedEvent('First Purchase', user),
     );
 
-    expect(eventEmitter.emit).toHaveBeenCalledTimes(1);
-    expect(eventEmitter.emit).toHaveBeenCalledWith(
+    expect(eventEmitter.emitAsync).toHaveBeenCalledTimes(1);
+    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
       BADGE_UNLOCKED_EVENT,
       new BadgeUnlockedEvent('Beginner', user, beginnerBadge),
     );
@@ -52,7 +52,7 @@ describe('EvaluateBadgesListener', () => {
       new AchievementUnlockedEvent('First Purchase', user),
     );
 
-    const emittedPayload = (eventEmitter.emit as jest.Mock).mock
+    const emittedPayload = (eventEmitter.emitAsync as jest.Mock).mock
       .calls[0][1] as BadgeUnlockedEvent;
 
     expect(emittedPayload.badgeName).toBe('Beginner');
@@ -69,7 +69,7 @@ describe('EvaluateBadgesListener', () => {
       new AchievementUnlockedEvent('First Purchase', user),
     );
 
-    expect(eventEmitter.emit).not.toHaveBeenCalled();
+    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
   });
 });
 
@@ -82,7 +82,7 @@ function createListenerHarness(options: { newlyUnlockedBadge: Badge | null }) {
     })),
   };
   const eventEmitter = {
-    emit: jest.fn(() => true),
+    emitAsync: jest.fn(async () => []),
   };
   const listener = new EvaluateBadgesListener(
     badgeProgression as unknown as BadgeProgressionService,

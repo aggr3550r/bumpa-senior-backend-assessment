@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -32,6 +32,7 @@ interface PaystackTransferRecipientResponse {
 export class PaystackCashbackProvider implements CashbackProvider {
   readonly providerName = 'paystack';
 
+  private readonly logger = new Logger(PaystackCashbackProvider.name);
   private readonly baseUrl: string;
   private readonly currency: string;
   private readonly secretKey: string;
@@ -58,19 +59,31 @@ export class PaystackCashbackProvider implements CashbackProvider {
     request: SendCashbackRequest,
   ): Promise<SendCashbackResult> {
     if (!this.secretKey) {
+      this.logger.error('Paystack cashback failed: secret key is not configured');
+
       return this.failed('Paystack secret key is not configured');
     }
 
     try {
+      const formattedReference = this.formatReference(request.reference);
+      const amountInMinorUnit = this.toMinorCurrencyUnit(request.amount);
+
       const user = await this.userRepository.findOne({
         where: { id: request.userId },
       });
 
       if (!user) {
+        this.logger.error(
+          `Paystack cashback failed: user not found for userId=${request.userId}`,
+        );
+
         return this.failed('User was not found for cashback transfer');
       }
 
       const recipientCode = await this.resolveRecipientCode(user);
+      this.logger.log(
+        `Sending Paystack transfer: userId=${request.userId}, amount=${request.amount}, amountInMinorUnit=${amountInMinorUnit}, recipient=${recipientCode}, reference=${formattedReference}`,
+      );
 
       const response = await fetch(`${this.baseUrl}/transfer`, {
         method: 'POST',
@@ -80,9 +93,9 @@ export class PaystackCashbackProvider implements CashbackProvider {
         },
         body: JSON.stringify({
           source: this.source,
-          amount: this.toMinorCurrencyUnit(request.amount),
+          amount: amountInMinorUnit,
           recipient: recipientCode,
-          reference: this.formatReference(request.reference),
+          reference: formattedReference,
           reason: 'Badge cashback',
           currency: this.currency,
         }),
@@ -90,8 +103,15 @@ export class PaystackCashbackProvider implements CashbackProvider {
       const payload = (await response.json().catch(() => null)) as
         | PaystackTransferResponse
         | null;
+      this.logger.log(
+        `Paystack transfer response: httpStatus=${response.status}, ok=${response.ok}, payload=${this.serializePaystackTransferResponse(payload)}`,
+      );
 
       if (!response.ok || payload?.status !== true || !payload.data) {
+        this.logger.error(
+          `Paystack transfer rejected: httpStatus=${response.status}, message=${payload?.message ?? 'Paystack transfer was rejected'}`,
+        );
+
         return this.failed(payload?.message ?? 'Paystack transfer was rejected');
       }
 
@@ -105,12 +125,21 @@ export class PaystackCashbackProvider implements CashbackProvider {
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Network failure';
 
+      this.logger.error(
+        `Paystack cashback failed before normalized response: ${message}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+
       return this.failed(message);
     }
   }
 
   private async resolveRecipientCode(user: User): Promise<string> {
     if (user.payoutRecipientReference) {
+      this.logger.log(
+        `Using stored Paystack recipient reference: userId=${user.id}, recipient=${user.payoutRecipientReference}`,
+      );
+
       return user.payoutRecipientReference;
     }
 
@@ -121,14 +150,28 @@ export class PaystackCashbackProvider implements CashbackProvider {
       { id: user.id },
       { payoutRecipientReference: recipientCode },
     );
+    this.logger.log(
+      `Stored Paystack recipient reference: userId=${user.id}, recipient=${recipientCode}`,
+    );
 
     return recipientCode;
   }
 
-  private async createTransferRecipient(user: User): Promise<string> {
-    if (!user.accountNumber || !user.bankCode || !user.accountName) {
+  private async createTransferRecipient(input: {
+    accountNumber?: string | null;
+    bankCode?: string | null;
+    accountName?: string | null;
+    currency?: string | null;
+  }): Promise<string> {
+    if (!input.accountNumber || !input.bankCode || !input.accountName) {
+      this.logger.error('Paystack recipient creation failed: incomplete user bank details');
+
       throw new Error('User bank details are incomplete');
     }
+
+    this.logger.log(
+      `Creating Paystack transfer recipient: bankCode=${input.bankCode}, accountNumber=${this.maskAccountNumber(input.accountNumber)}, accountName=${input.accountName}, currency=${input.currency ?? this.currency}`,
+    );
 
     // Paystack returns an existing recipient for duplicate account details,
     // which keeps repeated cashback attempts from creating provider duplicates.
@@ -140,23 +183,34 @@ export class PaystackCashbackProvider implements CashbackProvider {
       },
       body: JSON.stringify({
         type: 'nuban',
-        name: user.accountName,
-        account_number: user.accountNumber,
-        bank_code: user.bankCode,
-        currency: user.currency ?? this.currency,
+        name: input.accountName,
+        account_number: input.accountNumber,
+        bank_code: input.bankCode,
+        currency: input.currency ?? this.currency,
       }),
     });
     const payload = (await response.json().catch(() => null)) as
       | PaystackTransferRecipientResponse
       | null;
+    this.logger.log(
+      `Paystack recipient response: httpStatus=${response.status}, ok=${response.ok}, payload=${this.serializePaystackRecipientResponse(payload)}`,
+    );
 
     if (!response.ok || payload?.status !== true || !payload.data) {
+      this.logger.error(
+        `Paystack recipient creation rejected: httpStatus=${response.status}, message=${payload?.message ?? 'Paystack recipient creation was rejected'}`,
+      );
+
       throw new Error(
         payload?.message ?? 'Paystack recipient creation was rejected',
       );
     }
 
     if (!payload.data.recipient_code) {
+      this.logger.error(
+        'Paystack recipient creation failed: response did not include recipient_code',
+      );
+
       throw new Error('Paystack recipient response did not include a code');
     }
 
@@ -193,5 +247,35 @@ export class PaystackCashbackProvider implements CashbackProvider {
 
   private toMinorCurrencyUnit(amount: number): number {
     return amount * 100;
+  }
+
+  private maskAccountNumber(accountNumber: string): string {
+    return accountNumber.replace(/\d(?=\d{4})/g, '*');
+  }
+
+  private serializePaystackRecipientResponse(
+    payload: PaystackTransferRecipientResponse | null,
+  ): string {
+    return JSON.stringify({
+      status: payload?.status,
+      message: payload?.message,
+      recipientCode: payload?.data?.recipient_code,
+    });
+  }
+
+  private serializePaystackTransferResponse(
+    payload: PaystackTransferResponse | null,
+  ): string {
+    return JSON.stringify({
+      status: payload?.status,
+      message: payload?.message,
+      data: payload?.data
+        ? {
+            reference: payload.data.reference,
+            status: payload.data.status,
+            transferCode: payload.data.transfer_code,
+          }
+        : undefined,
+    });
   }
 }

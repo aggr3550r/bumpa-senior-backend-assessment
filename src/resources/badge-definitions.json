@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Starter",
+    "requiredAchievementCount": 2,
+    "ordering": 10
+  },
+  {
+    "name": "Loyal Customer",
+    "requiredAchievementCount": 5,
+    "ordering": 20
+  }
+]

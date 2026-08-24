@@ -16,6 +16,7 @@ describe('loadEnv', () => {
       DATABASE_NAME: 'bumpa_ecommerce',
       DATABASE_SSL: false,
       DATABASE_SYNCHRONIZE: false,
+      PROGRESSION_DEFINITION_LOADERS_ENABLED: true,
       PAYSTACK_BASE_URL: 'https://api.paystack.co',
       PAYSTACK_SECRET_KEY: 'sk_test_secret',
       PAYSTACK_TRANSFER_SOURCE: 'balance',
@@ -29,6 +30,7 @@ describe('loadEnv', () => {
       DATABASE_PORT: '15432',
       DATABASE_SSL: 'true',
       DATABASE_SYNCHRONIZE: 'false',
+      PROGRESSION_DEFINITION_LOADERS_ENABLED: 'false',
       PAYSTACK_SECRET_KEY: 'sk_test_secret',
     });
 
@@ -36,6 +38,7 @@ describe('loadEnv', () => {
     expect(env.DATABASE_PORT).toBe(15432);
     expect(env.DATABASE_SSL).toBe(true);
     expect(env.DATABASE_SYNCHRONIZE).toBe(false);
+    expect(env.PROGRESSION_DEFINITION_LOADERS_ENABLED).toBe(false);
   });
 
   it('rejects missing Paystack credentials', () => {

@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { OnEvent } from '@nestjs/event-emitter';
 import { BadgeUnlockedEvent } from '../../badges/events/badge-unlocked.event';
 import { BADGE_UNLOCKED_EVENT } from '../../badges/events/badge.events';
@@ -15,6 +15,8 @@ const BADGE_CASHBACK_AMOUNT = 300;
 
 @Injectable()
 export class ProcessBadgeUnlockedCashbackListener {
+  private readonly logger = new Logger(ProcessBadgeUnlockedCashbackListener.name);
+
   constructor(
     private readonly cashbackPayments: CashbackPaymentService,
     @Inject(CASHBACK_PROVIDER)
@@ -23,6 +25,10 @@ export class ProcessBadgeUnlockedCashbackListener {
 
   @OnEvent(BADGE_UNLOCKED_EVENT)
   async handleBadgeUnlocked(event: BadgeUnlockedEvent): Promise<void> {
+    this.logger.log(
+      `Processing cashback for badge unlock: userId=${event.user.id}, badgeId=${event.badge.id}, badgeName=${event.badgeName}`,
+    );
+
     /*
      * BadgeUnlocked is delivered with at-least-once semantics: listeners may see
      * the same event again after retries or duplicate emission. The persisted
@@ -37,7 +43,15 @@ export class ProcessBadgeUnlockedCashbackListener {
         provider: this.cashbackProvider.providerName,
       });
 
+    this.logger.log(
+      `Cashback entitlement resolved: paymentId=${payment.id}, created=${created}, status=${payment.status}, provider=${this.cashbackProvider.providerName}, reference=${payment.reference}`,
+    );
+
     if (payment.status === CashbackPaymentStatus.Succeeded) {
+      this.logger.log(
+        `Skipping cashback because payment already succeeded: paymentId=${payment.id}`,
+      );
+
       return;
     }
 
@@ -48,10 +62,17 @@ export class ProcessBadgeUnlockedCashbackListener {
      * duplicate BadgeUnlocked event cannot double-send while work is in flight.
      */
     if (!created && payment.status !== CashbackPaymentStatus.Failed) {
+      this.logger.log(
+        `Skipping duplicate cashback event while payment is ${payment.status}: paymentId=${payment.id}`,
+      );
+
       return;
     }
 
     await this.cashbackPayments.markCashbackAttemptStarted(payment.id);
+    this.logger.log(
+      `Cashback provider attempt started: paymentId=${payment.id}, amount=${BADGE_CASHBACK_AMOUNT}, reference=${payment.reference}`,
+    );
 
     try {
       const result = await this.cashbackProvider.sendCashback({
@@ -59,17 +80,27 @@ export class ProcessBadgeUnlockedCashbackListener {
         amount: BADGE_CASHBACK_AMOUNT,
         reference: payment.reference,
       });
+      const paymentStatus = this.toPaymentStatus(result.status);
+
+      this.logger.log(
+        `Cashback provider result: paymentId=${payment.id}, provider=${result.provider}, providerStatus=${result.status}, paymentStatus=${paymentStatus}, providerReference=${result.providerReference ?? 'null'}, failureReason=${result.failureReason ?? 'null'}`,
+      );
 
       await this.cashbackPayments.recordProviderResult({
         paymentId: payment.id,
         provider: result.provider,
         providerReference: result.providerReference,
-        status: this.toPaymentStatus(result.status),
+        status: paymentStatus,
         failureReason: result.failureReason,
       });
     } catch (error) {
       const failureReason =
         error instanceof Error ? error.message : 'Cashback provider failed';
+
+      this.logger.error(
+        `Cashback provider threw before returning a normalized result: paymentId=${payment.id}, failureReason=${failureReason}`,
+        error instanceof Error ? error.stack : undefined,
+      );
 
       await this.cashbackPayments.recordProviderResult({
         paymentId: payment.id,

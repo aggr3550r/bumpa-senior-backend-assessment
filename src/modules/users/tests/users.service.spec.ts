@@ -1,7 +1,4 @@
-import {
-  BadRequestException,
-  ConflictException,
-} from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { QueryFailedError } from 'typeorm';
 import { User } from '../entities/user.entity';
 import { UsersService } from '../users.service';

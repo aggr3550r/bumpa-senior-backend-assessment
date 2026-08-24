@@ -1,5 +1,16 @@
-import { achievementDefinitions } from '../modules/achievements/types/achievement-definitions';
-import { badgeDefinitions } from '../modules/badges/types/badge-definitions';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import {
+  AchievementDefinition,
+  BadgeDefinition,
+} from './progression-definition.types';
+
+const achievementDefinitions = readJsonResource<AchievementDefinition>(
+  'achievement-definitions.json',
+);
+const badgeDefinitions = readJsonResource<BadgeDefinition>(
+  'badge-definitions.json',
+);
 
 describe('progression definitions', () => {
   it('keeps purchase achievements in deterministic progression order', () => {
@@ -21,7 +32,25 @@ describe('progression definitions', () => {
     expect(new Set(groupThresholds).size).toBe(groupThresholds.length);
   });
 
-  it('does not invent badge thresholds before assessment data is available', () => {
-    expect(badgeDefinitions).toEqual([]);
+  it('keeps badges aligned to achievement progression order', () => {
+    expect(badgeDefinitions.map((badge) => badge.ordering)).toEqual([10, 20]);
+    expect(isNonDecreasing(badgeDefinitions)).toBe(true);
   });
 });
+
+function readJsonResource<T>(fileName: string): T[] {
+  return JSON.parse(
+    readFileSync(join(__dirname, '../resources', fileName), 'utf8'),
+  ) as T[];
+}
+
+function isNonDecreasing(definitions: BadgeDefinition[]): boolean {
+  return definitions.every((definition, index) => {
+    const previous = definitions[index - 1];
+
+    return (
+      !previous ||
+      definition.requiredAchievementCount >= previous.requiredAchievementCount
+    );
+  });
+}
