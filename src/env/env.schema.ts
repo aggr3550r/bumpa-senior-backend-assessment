@@ -9,6 +9,7 @@ export interface Env {
   DATABASE_NAME: string;
   DATABASE_SSL: boolean;
   DATABASE_SYNCHRONIZE: boolean;
+  CASHBACK_PROCESSING_STALE_AFTER_SECONDS: number;
   PROGRESSION_DEFINITION_LOADERS_ENABLED: boolean;
   PAYSTACK_BASE_URL: string;
   PAYSTACK_SECRET_KEY: string;
@@ -36,6 +37,11 @@ export function loadEnv(env: Record<string, string | undefined>): Env {
     DATABASE_NAME: readString(env, 'DATABASE_NAME', 'bumpa_ecommerce'),
     DATABASE_SSL: readBoolean(env, 'DATABASE_SSL', false),
     DATABASE_SYNCHRONIZE: readBoolean(env, 'DATABASE_SYNCHRONIZE', false),
+    CASHBACK_PROCESSING_STALE_AFTER_SECONDS: readPositiveInteger(
+      env,
+      'CASHBACK_PROCESSING_STALE_AFTER_SECONDS',
+      300,
+    ),
     PROGRESSION_DEFINITION_LOADERS_ENABLED: readBoolean(
       env,
       'PROGRESSION_DEFINITION_LOADERS_ENABLED',

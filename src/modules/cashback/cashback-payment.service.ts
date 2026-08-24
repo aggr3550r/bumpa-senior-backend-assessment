@@ -66,8 +66,18 @@ export class CashbackPaymentService {
     };
   }
 
-  async markCashbackAttemptStarted(paymentId: string): Promise<void> {
-    await this.cashbackPaymentRepository
+  async markCashbackAttemptStarted(
+    paymentId: string,
+    staleProcessingCutoff: Date,
+  ): Promise<boolean> {
+    /*
+     * This update is the retry claim. It is intentionally conditional so
+     * concurrent BadgeUnlocked deliveries cannot both send money for the same
+     * failed entitlement: only one transaction can move the row into processing.
+     * Processing rows are usually protected, but stale ones may be reclaimed
+     * after a process crash because retries reuse the same provider reference.
+     */
+    const result = await this.cashbackPaymentRepository
       .createQueryBuilder()
       .update(CashbackPayment)
       .set({
@@ -76,9 +86,29 @@ export class CashbackPaymentService {
         attemptCount: () => '"attempt_count" + 1',
       })
       .where('id = :paymentId', { paymentId })
+      .andWhere(
+        `
+          (
+            status IN (:...claimableStatuses)
+            OR (status = :processingStatus AND updated_at < :staleProcessingCutoff)
+          )
+        `,
+        {
+          claimableStatuses: [
+            CashbackPaymentStatus.Pending,
+            CashbackPaymentStatus.Failed,
+          ],
+          processingStatus: CashbackPaymentStatus.Processing,
+          staleProcessingCutoff,
+        },
+      )
+      .returning('id')
       .execute();
 
-    this.logger.log(`Cashback attempt marked processing: paymentId=${paymentId}`);
+    this.logger.log(
+      `Cashback attempt marked processing: paymentId=${paymentId}`,
+    );
+    return result.raw.length > 0;
   }
 
   async recordProviderResult(

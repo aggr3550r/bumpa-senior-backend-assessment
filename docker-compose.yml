@@ -2,20 +2,53 @@ services:
   app:
     build:
       context: .
-      target: development
-    command: npm run start:dev
+      target: runtime
     env_file:
-      - .env
+      - .env.example
     environment:
+      NODE_ENV: development
       DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-local_docker_paystack_key}
     ports:
       - "${PORT:-3000}:3000"
-    volumes:
-      - .:/app
-      - /app/node_modules
     depends_on:
       postgres:
         condition: service_healthy
+
+  migrations:
+    build:
+      context: .
+      target: development
+    command: npm run migration:run
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-local_docker_paystack_key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
+
+  tests:
+    build:
+      context: .
+      target: development
+    command: npm run test
+    env_file:
+      - .env.example
+    environment:
+      DATABASE_HOST: postgres
+      DATABASE_PORT: 5432
+      PAYSTACK_SECRET_KEY: ${PAYSTACK_SECRET_KEY:-local_docker_paystack_key}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    profiles:
+      - tools
 
   postgres:
     image: postgres:16-alpine
@@ -28,7 +61,11 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USER:-bumpa} -d ${DATABASE_NAME:-bumpa_ecommerce}"]
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DATABASE_USER:-bumpa} -d ${DATABASE_NAME:-bumpa_ecommerce}",
+        ]
       interval: 5s
       timeout: 5s
       retries: 10

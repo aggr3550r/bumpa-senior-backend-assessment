@@ -10,7 +10,7 @@ async function bootstrap() {
     logger: resolveLogLevels(),
   });
   const configService = app.get(ConfigService);
-  const port = configService.getOrThrow<number>('PORT');
+  const port = configService.getOrThrow<number>('PORT') || 8086;
 
   app.useGlobalPipes(
     new ValidationPipe({
