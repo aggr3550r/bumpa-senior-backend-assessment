@@ -22,6 +22,7 @@ export default [
         fetch: 'readonly',
         global: 'readonly',
         it: 'readonly',
+        __dirname: 'readonly',
         jest: 'readonly',
         process: 'readonly',
       },

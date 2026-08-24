@@ -1,0 +1,14 @@
+[
+  {
+    "name": "First Purchase",
+    "group": "purchases",
+    "threshold": 1,
+    "ordering": 10
+  },
+  {
+    "name": "5 Purchases",
+    "group": "purchases",
+    "threshold": 5,
+    "ordering": 20
+  }
+]
