@@ -1,11 +1,14 @@
 import { ConfigService } from '@nestjs/config';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, LogLevel, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const logger = new Logger('Bootstrap');
+  const app = await NestFactory.create(AppModule, {
+    logger: resolveLogLevels(),
+  });
   const configService = app.get(ConfigService);
   const port = configService.getOrThrow<number>('PORT');
 
@@ -25,7 +28,22 @@ async function bootstrap() {
   const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('docs', app, swaggerDocument);
 
-  await app.listen(port, () => console.log('Server started on port', port));
+  await app.listen(port, () => {
+    logger.log(`Server started on port ${port}`);
+  });
 }
 
 void bootstrap();
+
+function resolveLogLevels(): LogLevel[] {
+  const configuredLevels = process.env.LOG_LEVELS;
+
+  if (!configuredLevels) {
+    return ['log', 'error', 'warn', 'debug'];
+  }
+
+  return configuredLevels
+    .split(',')
+    .map((level) => level.trim())
+    .filter(Boolean) as LogLevel[];
+}

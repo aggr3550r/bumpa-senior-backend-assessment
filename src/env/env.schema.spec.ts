@@ -9,6 +9,7 @@ describe('loadEnv', () => {
     expect(env).toMatchObject({
       NODE_ENV: 'development',
       PORT: 3000,
+      LOG_LEVELS: ['log', 'error', 'warn', 'debug'],
       DATABASE_HOST: 'localhost',
       DATABASE_PORT: 5432,
       DATABASE_USER: 'bumpa',
@@ -39,6 +40,24 @@ describe('loadEnv', () => {
     expect(env.DATABASE_SSL).toBe(true);
     expect(env.DATABASE_SYNCHRONIZE).toBe(false);
     expect(env.PROGRESSION_DEFINITION_LOADERS_ENABLED).toBe(false);
+  });
+
+  it('parses configured log levels', () => {
+    const env = loadEnv({
+      LOG_LEVELS: 'error,warn',
+      PAYSTACK_SECRET_KEY: 'sk_test_secret',
+    });
+
+    expect(env.LOG_LEVELS).toEqual(['error', 'warn']);
+  });
+
+  it('rejects invalid log levels', () => {
+    expect(() =>
+      loadEnv({
+        LOG_LEVELS: 'error,nope',
+        PAYSTACK_SECRET_KEY: 'sk_test_secret',
+      }),
+    ).toThrow('LOG_LEVELS must only include: log, error, warn, debug, verbose');
   });
 
   it('rejects missing Paystack credentials', () => {

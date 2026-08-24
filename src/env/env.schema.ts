@@ -1,6 +1,7 @@
 export interface Env {
   NODE_ENV: 'development' | 'test' | 'production';
   PORT: number;
+  LOG_LEVELS: string[];
   DATABASE_HOST: string;
   DATABASE_PORT: number;
   DATABASE_USER: string;
@@ -16,11 +17,18 @@ export interface Env {
 }
 
 const nodeEnvironments = ['development', 'test', 'production'] as const;
+const logLevels = ['log', 'error', 'warn', 'debug', 'verbose'] as const;
 
 export function loadEnv(env: Record<string, string | undefined>): Env {
   return {
     NODE_ENV: readEnum(env, 'NODE_ENV', nodeEnvironments, 'development'),
     PORT: readPositiveInteger(env, 'PORT', 3000),
+    LOG_LEVELS: readStringList(env, 'LOG_LEVELS', [
+      'log',
+      'error',
+      'warn',
+      'debug',
+    ]),
     DATABASE_HOST: readString(env, 'DATABASE_HOST', 'localhost'),
     DATABASE_PORT: readPositiveInteger(env, 'DATABASE_PORT', 5432),
     DATABASE_USER: readString(env, 'DATABASE_USER', 'bumpa'),
@@ -46,6 +54,37 @@ export function loadEnv(env: Record<string, string | undefined>): Env {
     ),
     PAYSTACK_CURRENCY: readString(env, 'PAYSTACK_CURRENCY', 'NGN'),
   };
+}
+
+function readStringList(
+  env: Record<string, string | undefined>,
+  key: string,
+  fallback: string[],
+): string[] {
+  const value = normalize(env[key]);
+
+  if (value === undefined) {
+    return fallback;
+  }
+
+  const entries = value
+    .split(',')
+    .map((entry) => entry.trim())
+    .filter(Boolean);
+
+  if (entries.length === 0) {
+    throw new Error(`${key} must include at least one value`);
+  }
+
+  const invalidEntries = entries.filter(
+    (entry) => !logLevels.includes(entry as (typeof logLevels)[number]),
+  );
+
+  if (invalidEntries.length > 0) {
+    throw new Error(`${key} must only include: ${logLevels.join(', ')}`);
+  }
+
+  return entries;
 }
 
 function readString(

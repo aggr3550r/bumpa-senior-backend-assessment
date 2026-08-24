@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -10,6 +10,8 @@ import { PurchaseStatus } from './types/purchase-status.enum';
 
 @Injectable()
 export class PurchasesService {
+  private readonly logger = new Logger(PurchasesService.name);
+
   constructor(
     @InjectRepository(Purchase)
     private readonly purchaseRepository: Repository<Purchase>,
@@ -17,6 +19,10 @@ export class PurchasesService {
   ) {}
 
   async createCompletedPurchase(userId: string, amount: number) {
+    this.logger.log(
+      `Creating completed purchase: userId=${userId}, amount=${amount}`,
+    );
+
     const { purchase, user, totalCompletedPurchases } =
       await this.purchaseRepository.manager.transaction(async (manager) => {
         const userRepository = manager.getRepository(User);
@@ -25,6 +31,10 @@ export class PurchasesService {
         const user = await userRepository.findOne({ where: { id: userId } });
 
         if (!user) {
+          this.logger.warn(
+            `Purchase creation rejected because user does not exist: userId=${userId}`,
+          );
+
           throw new NotFoundException('user not found');
         }
 
@@ -50,9 +60,20 @@ export class PurchasesService {
         };
       });
 
+    this.logger.log(
+      `Completed purchase persisted: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
+    );
+    this.logger.debug(
+      `Emitting purchase completed event: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
+    );
+
     await this.eventEmitter.emitAsync(
       PURCHASE_COMPLETED_EVENT,
       new PurchaseCompletedEvent(user, totalCompletedPurchases),
+    );
+
+    this.logger.debug(
+      `Purchase completed event handlers finished: purchaseId=${purchase.id}, userId=${userId}`,
     );
 
     return {

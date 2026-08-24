@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
 import { PURCHASE_ACHIEVEMENT_GROUP } from './types/achievement-definitions';
@@ -11,6 +11,8 @@ import { UserAchievement } from './entities/user-achievement.entity';
 
 @Injectable()
 export class AchievementEvaluatorService {
+  private readonly logger = new Logger(AchievementEvaluatorService.name);
+
   constructor(
     @InjectRepository(UserAchievement)
     private readonly userAchievementRepository: Repository<UserAchievement>,
@@ -19,6 +21,10 @@ export class AchievementEvaluatorService {
   async evaluatePurchaseAchievements(
     input: EvaluatePurchaseAchievementsInput,
   ): Promise<AchievementEvaluationResult> {
+    this.logger.debug(
+      `Evaluating purchase achievements: userId=${input.userId}, totalCompletedPurchases=${input.totalCompletedPurchases}`,
+    );
+
     return this.userAchievementRepository.manager.transaction((manager) =>
       this.evaluateThresholdGroup(
         manager,
@@ -52,6 +58,9 @@ export class AchievementEvaluatorService {
         ordering: 'ASC',
       },
     });
+    this.logger.debug(
+      `Eligible achievements resolved: userId=${userId}, group=${group}, progress=${progress}, eligibleCount=${eligibleAchievements.length}`,
+    );
 
     const unlockedAchievements: Achievement[] = [];
 
@@ -64,8 +73,19 @@ export class AchievementEvaluatorService {
 
       if (wasUnlocked) {
         unlockedAchievements.push(achievement);
+        this.logger.log(
+          `Achievement unlocked: userId=${userId}, achievementId=${achievement.id}, achievementName=${achievement.name}, group=${group}, threshold=${achievement.threshold}`,
+        );
+      } else {
+        this.logger.debug(
+          `Achievement already unlocked; skipping duplicate unlock: userId=${userId}, achievementId=${achievement.id}, achievementName=${achievement.name}`,
+        );
       }
     }
+
+    this.logger.debug(
+      `Purchase achievement evaluation completed: userId=${userId}, group=${group}, newlyUnlockedCount=${unlockedAchievements.length}`,
+    );
 
     return { unlockedAchievements };
   }
