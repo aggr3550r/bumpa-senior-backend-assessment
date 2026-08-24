@@ -172,6 +172,70 @@ describe('PaystackCashbackProvider', () => {
     });
   });
 
+  it('mocks restricted third-party payout success in development', async () => {
+    mockFetchSequence([
+      {
+        ok: false,
+        status: 400,
+        body: {
+          status: false,
+          message: 'You cannot initiate third party payouts at this time',
+        },
+      },
+    ]);
+    const provider = createProvider({
+      user,
+      config: {
+        NODE_ENV: 'development',
+      },
+    });
+
+    const result = await provider.sendCashback({
+      userId: user.id,
+      amount: 300,
+      reference: 'Cashback:USER:BADGE',
+    });
+
+    expect(result).toEqual({
+      provider: 'paystack',
+      providerReference: 'mock_cashback_user_badge',
+      status: CashbackProviderTransferStatus.Succeeded,
+      failureReason: null,
+    });
+  });
+
+  it('does not mock restricted third-party payout failure outside development', async () => {
+    mockFetchSequence([
+      {
+        ok: false,
+        status: 400,
+        body: {
+          status: false,
+          message: 'You cannot initiate third party payouts at this time',
+        },
+      },
+    ]);
+    const provider = createProvider({
+      user,
+      config: {
+        NODE_ENV: 'production',
+      },
+    });
+
+    const result = await provider.sendCashback({
+      userId: user.id,
+      amount: 300,
+      reference: 'cashback_ref',
+    });
+
+    expect(result).toEqual({
+      provider: 'paystack',
+      providerReference: null,
+      status: CashbackProviderTransferStatus.Failed,
+      failureReason: 'You cannot initiate third party payouts at this time',
+    });
+  });
+
   it('maps network exceptions to a failed transfer result', async () => {
     global.fetch = jest.fn(async () => {
       throw new Error('connection timeout');
@@ -288,6 +352,7 @@ function createProvider(input: {
   config?: Record<string, string>;
 }) {
   const defaults = {
+    NODE_ENV: 'test',
     PAYSTACK_BASE_URL: 'https://api.paystack.co',
     PAYSTACK_SECRET_KEY: 'sk_test_secret',
     PAYSTACK_TRANSFER_SOURCE: 'balance',
@@ -308,7 +373,9 @@ function createProvider(input: {
   );
 }
 
-function mockFetchSequence(inputs: { ok: boolean; body: unknown }[]) {
+function mockFetchSequence(
+  inputs: { ok: boolean; status?: number; body: unknown }[],
+) {
   const fetchMock = jest.fn(async () => {
     const input = inputs.shift();
 
@@ -318,6 +385,7 @@ function mockFetchSequence(inputs: { ok: boolean; body: unknown }[]) {
 
     return {
       ok: input.ok,
+      status: input.status,
       json: jest.fn(async () => input.body),
     };
   });
