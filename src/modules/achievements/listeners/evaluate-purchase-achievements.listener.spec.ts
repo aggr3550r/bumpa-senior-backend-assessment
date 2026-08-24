@@ -40,7 +40,7 @@ describe('EvaluatePurchaseAchievementsListener', () => {
     const emittedPayload = (eventEmitter.emitAsync as jest.Mock).mock
       .calls[0][1] as AchievementUnlockedEvent;
 
-    expect(emittedPayload.achievement_name).toBe('First Purchase');
+    expect(emittedPayload.achievementName).toBe('First Purchase');
     expect(emittedPayload.user).toBe(user);
   });
 

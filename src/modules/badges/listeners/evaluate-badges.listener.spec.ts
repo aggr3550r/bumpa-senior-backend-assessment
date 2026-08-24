@@ -55,7 +55,7 @@ describe('EvaluateBadgesListener', () => {
     const emittedPayload = (eventEmitter.emit as jest.Mock).mock
       .calls[0][1] as BadgeUnlockedEvent;
 
-    expect(emittedPayload.badge_name).toBe('Beginner');
+    expect(emittedPayload.badgeName).toBe('Beginner');
     expect(emittedPayload.user).toBe(user);
   });
 
