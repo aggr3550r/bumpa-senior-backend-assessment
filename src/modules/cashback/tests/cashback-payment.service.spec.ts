@@ -3,6 +3,7 @@ import { CashbackPayment } from '../entities/cashback-payment.entity';
 import { CashbackPaymentStatus } from '../types/cashback-payment-status.enum';
 
 describe('CashbackPaymentService', () => {
+  const staleProcessingCutoff = new Date('2026-08-24T12:00:00.000Z');
   const input = {
     userId: '25c278b1-2809-4c59-b93c-5c9b771f08bc',
     badgeId: '44d7205f-2f02-401b-8af5-d65ee9b1deea',
@@ -54,11 +55,75 @@ describe('CashbackPaymentService', () => {
     const { service } = createServiceHarness();
     const { payment } = await service.createPendingCashbackPayment(input);
 
-    await service.markCashbackAttemptStarted(payment.id);
+    await expect(
+      service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff),
+    ).resolves.toBe(true);
 
     expect(payment).toMatchObject({
       status: CashbackPaymentStatus.Processing,
       failureReason: null,
+      attemptCount: 1,
+    });
+  });
+
+  it('does not claim an already-processing payment attempt', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+
+    await service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff);
+    await expect(
+      service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff),
+    ).resolves.toBe(false);
+
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Processing,
+      attemptCount: 1,
+    });
+  });
+
+  it('can claim failed payments for retry', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+    payment.status = CashbackPaymentStatus.Failed;
+
+    await expect(
+      service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff),
+    ).resolves.toBe(true);
+
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Processing,
+      attemptCount: 1,
+    });
+  });
+
+  it('does not claim fresh processing payments', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+    payment.status = CashbackPaymentStatus.Processing;
+    payment.updatedAt = new Date('2026-08-24T12:01:00.000Z');
+
+    await expect(
+      service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff),
+    ).resolves.toBe(false);
+
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Processing,
+      attemptCount: 0,
+    });
+  });
+
+  it('claims stale processing payments for crash recovery', async () => {
+    const { service } = createServiceHarness();
+    const { payment } = await service.createPendingCashbackPayment(input);
+    payment.status = CashbackPaymentStatus.Processing;
+    payment.updatedAt = new Date('2026-08-24T11:59:00.000Z');
+
+    await expect(
+      service.markCashbackAttemptStarted(payment.id, staleProcessingCutoff),
+    ).resolves.toBe(true);
+
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Processing,
       attemptCount: 1,
     });
   });
@@ -139,6 +204,9 @@ class FakeQueryBuilder {
     badgeId: string;
   };
   private paymentId?: string;
+  private claimableStatuses?: CashbackPaymentStatus[];
+  private processingStatus?: CashbackPaymentStatus;
+  private staleProcessingCutoff?: Date;
 
   constructor(private readonly paymentStore: Map<string, CashbackPayment>) {}
 
@@ -165,6 +233,20 @@ class FakeQueryBuilder {
     return this;
   }
 
+  andWhere(
+    _condition: string,
+    parameters: {
+      claimableStatuses: CashbackPaymentStatus[];
+      processingStatus: CashbackPaymentStatus;
+      staleProcessingCutoff: Date;
+    },
+  ) {
+    this.claimableStatuses = parameters.claimableStatuses;
+    this.processingStatus = parameters.processingStatus;
+    this.staleProcessingCutoff = parameters.staleProcessingCutoff;
+    return this;
+  }
+
   values(
     payload: Partial<CashbackPayment> & { userId: string; badgeId: string },
   ) {
@@ -183,11 +265,19 @@ class FakeQueryBuilder {
   async execute() {
     if (this.paymentId) {
       const payment = this.findPaymentById(this.paymentId);
+
+      if (
+        this.claimableStatuses &&
+        !this.isClaimable(payment)
+      ) {
+        return { raw: [] };
+      }
+
       payment.status = CashbackPaymentStatus.Processing;
       payment.failureReason = null;
       payment.attemptCount += 1;
 
-      return { raw: [] };
+      return { raw: [{ id: payment.id }] };
     }
 
     if (!this.valuesPayload) {
@@ -229,5 +319,17 @@ class FakeQueryBuilder {
     }
 
     throw new Error('Cashback payment was not found');
+  }
+
+  private isClaimable(payment: CashbackPayment): boolean {
+    if (this.claimableStatuses?.includes(payment.status)) {
+      return true;
+    }
+
+    return (
+      payment.status === this.processingStatus &&
+      !!this.staleProcessingCutoff &&
+      payment.updatedAt < this.staleProcessingCutoff
+    );
   }
 }

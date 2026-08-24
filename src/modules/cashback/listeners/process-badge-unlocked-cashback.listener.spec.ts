@@ -1,6 +1,7 @@
 import { Badge } from '../../badges/entities/badge.entity';
 import { BadgeUnlockedEvent } from '../../badges/events/badge-unlocked.event';
 import { User } from '../../users/entities/user.entity';
+import { ConfigService } from '@nestjs/config';
 import { CashbackPaymentService } from '../cashback-payment.service';
 import { CashbackPayment } from '../entities/cashback-payment.entity';
 import {
@@ -105,6 +106,31 @@ describe('ProcessBadgeUnlockedCashbackListener', () => {
     });
   });
 
+  it('does not resend when another worker has already claimed a failed retry', async () => {
+    const user = buildUser();
+    const badge = buildBadge();
+    const payment = buildPayment({
+      userId: user.id,
+      badgeId: badge.id,
+      status: CashbackPaymentStatus.Failed,
+      attemptCount: 1,
+    });
+    const { listener, payments, provider } = createListenerHarness({
+      user,
+      badge,
+      initialPayments: [payment],
+    });
+    payments.forceNextClaimFailure = true;
+
+    await listener.handleBadgeUnlocked(new BadgeUnlockedEvent(badge.name, user, badge));
+
+    expect(provider.requests).toEqual([]);
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Failed,
+      attemptCount: 1,
+    });
+  });
+
   it('never resends already successful cashback', async () => {
     const { listener, provider, payments, event } = createListenerHarness();
 
@@ -137,6 +163,31 @@ describe('ProcessBadgeUnlockedCashbackListener', () => {
     expect(provider.requests).toEqual([]);
   });
 
+  it('retries a stale processing payment after crash recovery window elapses', async () => {
+    const user = buildUser();
+    const badge = buildBadge();
+    const payment = buildPayment({
+      userId: user.id,
+      badgeId: badge.id,
+      status: CashbackPaymentStatus.Processing,
+      attemptCount: 1,
+    });
+    payment.updatedAt = new Date(Date.now() - 10 * 60 * 1000);
+    const { listener, provider } = createListenerHarness({
+      user,
+      badge,
+      initialPayments: [payment],
+    });
+
+    await listener.handleBadgeUnlocked(new BadgeUnlockedEvent(badge.name, user, badge));
+
+    expect(provider.requests).toHaveLength(1);
+    expect(payment).toMatchObject({
+      status: CashbackPaymentStatus.Succeeded,
+      attemptCount: 2,
+    });
+  });
+
   it('sends the provider the correct user and idempotency reference', async () => {
     const { listener, provider, event } = createListenerHarness();
 
@@ -160,8 +211,12 @@ function createListenerHarness(options: {
   const badge = options.badge ?? buildBadge();
   const payments = new FakeCashbackPaymentService(options.initialPayments ?? []);
   const provider = new FakeCashbackProvider(options.providerResults);
+  const configService = {
+    get: jest.fn((_key: string, fallback: number) => fallback),
+  };
   const listener = new ProcessBadgeUnlockedCashbackListener(
     payments as unknown as CashbackPaymentService,
+    configService as unknown as ConfigService,
     provider,
   );
 
@@ -270,11 +325,41 @@ class FakeCashbackPaymentService {
     };
   }
 
-  async markCashbackAttemptStarted(paymentId: string): Promise<void> {
+  forceNextClaimFailure = false;
+
+  async markCashbackAttemptStarted(paymentId: string): Promise<boolean> {
     const payment = this.findPaymentById(paymentId);
+    const staleProcessingCutoff = new Date(Date.now() - 300 * 1000);
+
+    if (this.forceNextClaimFailure) {
+      this.forceNextClaimFailure = false;
+
+      return false;
+    }
+
+    if (!this.isClaimable(payment, staleProcessingCutoff)) {
+      return false;
+    }
+
     payment.status = CashbackPaymentStatus.Processing;
     payment.failureReason = null;
     payment.attemptCount += 1;
+
+    return true;
+  }
+
+  private isClaimable(
+    payment: CashbackPayment,
+    staleProcessingCutoff: Date,
+  ): boolean {
+    return (
+      [
+        CashbackPaymentStatus.Pending,
+        CashbackPaymentStatus.Failed,
+      ].includes(payment.status) ||
+      (payment.status === CashbackPaymentStatus.Processing &&
+        payment.updatedAt < staleProcessingCutoff)
+    );
   }
 
   async recordProviderResult(input: {
