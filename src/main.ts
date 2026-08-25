@@ -1,8 +1,9 @@
 import { ConfigService } from '@nestjs/config';
-import { Logger, LogLevel, ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module';
+import { resolveLogLevels } from './log-levels';
 
 async function bootstrap() {
   const logger = new Logger('Bootstrap');
@@ -10,7 +11,7 @@ async function bootstrap() {
     logger: resolveLogLevels(),
   });
   const configService = app.get(ConfigService);
-  const port = configService.getOrThrow<number>('PORT') || 8086;
+  const port = configService.getOrThrow<number>('PORT');
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -34,16 +35,3 @@ async function bootstrap() {
 }
 
 void bootstrap();
-
-function resolveLogLevels(): LogLevel[] {
-  const configuredLevels = process.env.LOG_LEVELS;
-
-  if (!configuredLevels) {
-    return ['log', 'error', 'warn', 'debug'];
-  }
-
-  return configuredLevels
-    .split(',')
-    .map((level) => level.trim())
-    .filter(Boolean) as LogLevel[];
-}

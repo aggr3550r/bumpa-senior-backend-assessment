@@ -1,4 +1,6 @@
 import { UserAchievement } from '../../achievements/entities/user-achievement.entity';
+import { BADGE_UNLOCKED_OUTBOX_EVENT } from '../../../outbox/outbox-event.types';
+import { OutboxService } from '../../../outbox/outbox.service';
 import { BadgeProgressionService } from '../badge-progression.service';
 import { Badge } from '../entities/badge.entity';
 import { UserBadge } from '../entities/user-badge.entity';
@@ -33,7 +35,7 @@ describe('BadgeProgressionService', () => {
   });
 
   it('earns a badge at its threshold', async () => {
-    const { service } = createServiceHarness({
+    const { service, outbox } = createServiceHarness({
       badges,
       achievementCount: 1,
     });
@@ -41,6 +43,16 @@ describe('BadgeProgressionService', () => {
     const result = await service.evaluateBadgeProgression({ userId });
 
     expect(result.newlyUnlockedBadge?.name).toBe('Beginner');
+    expect(outbox.create).toHaveBeenCalledWith(expect.any(FakeEntityManager), {
+      eventType: BADGE_UNLOCKED_OUTBOX_EVENT,
+      aggregateType: 'badge',
+      aggregateId: badges[0].id,
+      payload: {
+        badgeId: badges[0].id,
+        badgeName: 'Beginner',
+        userId,
+      },
+    });
   });
 
   it('ignores a badge the user already earned', async () => {
@@ -115,11 +127,16 @@ function createServiceHarness(options: {
   userBadgeRepository.manager = {
     transaction: jest.fn((callback) => callback(manager)),
   };
+  const outbox = {
+    create: jest.fn(async () => undefined),
+  };
 
   return {
     badgeUnlockStore,
+    outbox,
     service: new BadgeProgressionService(
       userBadgeRepository as never,
+      outbox as unknown as OutboxService,
     ),
   };
 }

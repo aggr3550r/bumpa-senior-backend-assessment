@@ -2,36 +2,36 @@
 
 NestJS backend for purchase-driven achievements, badge progression, and cashback processing.
 
-## Run With Docker
+## Docker Run
 
-Build the images:
+Build images:
 
 ```bash
-docker compose build
+docker compose build --pull
 ```
 
-Run database migrations:
+Run migrations:
 
 ```bash
 docker compose --profile tools run --rm migrations
 ```
 
-Start Postgres and the API:
+Start the API:
 
 ```bash
 docker compose up app
 ```
 
-The API listens on `http://localhost:3000` by default. Swagger docs are available at:
-
-```text
-http://localhost:3000/docs
-```
-
-If your local `.env` overrides `PORT` and that host port is already in use, choose another host port:
+The API listens on `http://localhost:3000` by default. Use `HOST_PORT` to expose a different host port:
 
 ```bash
-PORT=3001 docker compose up app
+HOST_PORT=8085 docker compose up app
+```
+
+Swagger docs are available at:
+
+```text
+http://localhost:{PORT}/docs
 ```
 
 Run tests in Docker:
@@ -40,13 +40,13 @@ Run tests in Docker:
 docker compose --profile tools run --rm tests
 ```
 
-Stop and remove containers:
+Stop containers:
 
 ```bash
 docker compose down
 ```
 
-Reset the local database volume:
+Reset the database volume:
 
 ```bash
 docker compose down -v
@@ -54,45 +54,20 @@ docker compose down -v
 
 ## Environment
 
-Docker Compose reads `.env.example` and supplies container-safe defaults. To use real Paystack credentials locally, export them before running Compose:
+Docker Compose reads `.env.example` for container-safe defaults. Pass secrets through a local `.env`, exported shell variables, or CI secrets:
 
 ```bash
-export PAYSTACK_SECRET_KEY=your_paystack_test_key
-docker compose up app
+PAYSTACK_SECRET_KEY=your_paystack_test_key docker compose up app worker
 ```
 
-For local demo runs, `NODE_ENV=development` allows the Paystack adapter to mock the specific unverified-business payout restriction returned by Paystack. Other provider failures still fail normally.
+## Queue Flow
 
-## Seed Data
+Purchase creation writes a `purchase.completed` outbox row in the same database transaction as the purchase. The worker drains committed outbox rows into BullMQ, then processes purchase, achievement, badge, and cashback jobs asynchronously through Redis.
 
-Achievement and badge definitions are loaded from `src/resources/*.json` when the API starts and `PROGRESSION_DEFINITION_LOADERS_ENABLED=true`. Run migrations first so the loader has the required tables.
+For local/demo runtime, the API process starts the outbox dispatcher and BullMQ processors automatically. The API request does not wait for achievement evaluation, badge issuance, or Paystack payout attempts.
 
-## Queue Worker
-
-There is no separate queue process in this project. Domain events are handled in-process through Nest's event emitter, so `docker compose up app` runs the complete application flow.
-
-## Local Commands
-
-Install dependencies:
+An optional standalone worker service remains available for production-style process separation:
 
 ```bash
-npm ci
-```
-
-Run the app:
-
-```bash
-npm run start:dev
-```
-
-Run migrations:
-
-```bash
-npm run migration:run
-```
-
-Run verification:
-
-```bash
-npm run lint && npm run build && npm test
+docker compose --profile workers up worker
 ```

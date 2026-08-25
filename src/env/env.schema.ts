@@ -9,6 +9,10 @@ export interface Env {
   DATABASE_NAME: string;
   DATABASE_SSL: boolean;
   DATABASE_SYNCHRONIZE: boolean;
+  REDIS_HOST: string;
+  REDIS_PORT: number;
+  OUTBOX_POLL_INTERVAL_MS: number;
+  OUTBOX_BATCH_SIZE: number;
   CASHBACK_PROCESSING_STALE_AFTER_SECONDS: number;
   PROGRESSION_DEFINITION_LOADERS_ENABLED: boolean;
   PAYSTACK_BASE_URL: string;
@@ -37,6 +41,14 @@ export function loadEnv(env: Record<string, string | undefined>): Env {
     DATABASE_NAME: readString(env, 'DATABASE_NAME', 'bumpa_ecommerce'),
     DATABASE_SSL: readBoolean(env, 'DATABASE_SSL', false),
     DATABASE_SYNCHRONIZE: readBoolean(env, 'DATABASE_SYNCHRONIZE', false),
+    REDIS_HOST: readString(env, 'REDIS_HOST', 'localhost'),
+    REDIS_PORT: readPositiveInteger(env, 'REDIS_PORT', 6379),
+    OUTBOX_POLL_INTERVAL_MS: readPositiveInteger(
+      env,
+      'OUTBOX_POLL_INTERVAL_MS',
+      1000,
+    ),
+    OUTBOX_BATCH_SIZE: readPositiveInteger(env, 'OUTBOX_BATCH_SIZE', 25),
     CASHBACK_PROCESSING_STALE_AFTER_SECONDS: readPositiveInteger(
       env,
       'CASHBACK_PROCESSING_STALE_AFTER_SECONDS',

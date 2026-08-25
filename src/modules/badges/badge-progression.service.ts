@@ -2,6 +2,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { UserAchievement } from '../achievements/entities/user-achievement.entity';
+import { BADGE_UNLOCKED_OUTBOX_EVENT } from '../../outbox/outbox-event.types';
+import { OutboxService } from '../../outbox/outbox.service';
 import {
   BadgeProgressionResult,
   EvaluateBadgeProgressionInput,
@@ -16,6 +18,7 @@ export class BadgeProgressionService {
   constructor(
     @InjectRepository(UserBadge)
     private readonly userBadgeRepository: Repository<UserBadge>,
+    private readonly outbox: OutboxService,
   ) {}
 
   async evaluateBadgeProgression(
@@ -85,6 +88,16 @@ export class BadgeProgressionService {
       );
 
       if (insertedBadge) {
+        await this.outbox.create(manager, {
+          eventType: BADGE_UNLOCKED_OUTBOX_EVENT,
+          aggregateType: 'badge',
+          aggregateId: insertedBadge.id,
+          payload: {
+            badgeId: insertedBadge.id,
+            badgeName: insertedBadge.name,
+            userId,
+          },
+        });
         insertedBadges.push(insertedBadge);
         unlockedBadgeIds.add(insertedBadge.id);
         this.logger.log(

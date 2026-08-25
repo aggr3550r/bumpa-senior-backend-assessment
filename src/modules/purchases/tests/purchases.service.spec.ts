@@ -1,17 +1,16 @@
 import { NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { User } from '../../users/entities/user.entity';
+import { PURCHASE_COMPLETED_OUTBOX_EVENT } from '../../../outbox/outbox-event.types';
+import { OutboxService } from '../../../outbox/outbox.service';
 import { Purchase } from '../entities/purchase.entity';
-import { PurchaseCompletedEvent } from '../events/purchase-completed.event';
-import { PURCHASE_COMPLETED_EVENT } from '../events/purchase.events';
 import { PurchasesService } from '../purchases.service';
 import { PurchaseStatus } from '../types/purchase-status.enum';
 
 describe('PurchasesService', () => {
   const user = buildUser();
 
-  it('persists a completed purchase and emits purchase progress', async () => {
-    const { service, eventEmitter } = createServiceHarness({
+  it('persists a completed purchase and records purchase progress in the outbox', async () => {
+    const { service, outbox } = createServiceHarness({
       user,
       completedPurchaseCount: 5,
     });
@@ -24,14 +23,20 @@ describe('PurchasesService', () => {
       status: PurchaseStatus.Completed,
     });
     expect(result.totalCompletedPurchases).toBe(5);
-    expect(eventEmitter.emitAsync).toHaveBeenCalledWith(
-      PURCHASE_COMPLETED_EVENT,
-      new PurchaseCompletedEvent(user, 5),
-    );
+    expect(outbox.create).toHaveBeenCalledWith(expect.any(FakeEntityManager), {
+      eventType: PURCHASE_COMPLETED_OUTBOX_EVENT,
+      aggregateType: 'purchase',
+      aggregateId: result.purchase.id,
+      payload: {
+        purchaseId: result.purchase.id,
+        userId: user.id,
+        totalCompletedPurchases: 5,
+      },
+    });
   });
 
-  it('rejects purchases for missing users before emitting events', async () => {
-    const { service, eventEmitter } = createServiceHarness({
+  it('rejects purchases for missing users before recording outbox events', async () => {
+    const { service, outbox } = createServiceHarness({
       user: null,
       completedPurchaseCount: 0,
     });
@@ -40,7 +45,7 @@ describe('PurchasesService', () => {
       service.createCompletedPurchase(user.id, 1200),
     ).rejects.toBeInstanceOf(NotFoundException);
 
-    expect(eventEmitter.emitAsync).not.toHaveBeenCalled();
+    expect(outbox.create).not.toHaveBeenCalled();
   });
 });
 
@@ -58,15 +63,15 @@ function createServiceHarness(options: {
       transaction: jest.fn((callback) => callback(manager)),
     },
   };
-  const eventEmitter = {
-    emitAsync: jest.fn(async () => undefined),
+  const outbox = {
+    create: jest.fn(async () => undefined),
   };
 
   return {
-    eventEmitter,
+    outbox,
     service: new PurchasesService(
       rootPurchaseRepository as never,
-      eventEmitter as unknown as EventEmitter2,
+      outbox as unknown as OutboxService,
     ),
   };
 }

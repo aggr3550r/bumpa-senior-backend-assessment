@@ -1,6 +1,8 @@
 import { AchievementEvaluatorService } from '../achievement-evaluator.service';
 import { Achievement } from '../entities/achievement.entity';
 import { UserAchievement } from '../entities/user-achievement.entity';
+import { ACHIEVEMENT_UNLOCKED_OUTBOX_EVENT } from '../../../outbox/outbox-event.types';
+import { OutboxService } from '../../../outbox/outbox.service';
 
 describe('AchievementEvaluatorService', () => {
   const userId = 'd81cdd5c-2c45-4478-b0a5-b261b59c87b1';
@@ -20,7 +22,7 @@ describe('AchievementEvaluatorService', () => {
   ];
 
   it('unlocks First Purchase on the first purchase', async () => {
-    const { service } = createServiceHarness({ achievements });
+    const { service, outbox } = createServiceHarness({ achievements });
 
     const result = await service.evaluatePurchaseAchievements({
       userId,
@@ -30,6 +32,16 @@ describe('AchievementEvaluatorService', () => {
     expect(result.unlockedAchievements.map((achievement) => achievement.name)).toEqual([
       'First Purchase',
     ]);
+    expect(outbox.create).toHaveBeenCalledWith(expect.any(FakeEntityManager), {
+      eventType: ACHIEVEMENT_UNLOCKED_OUTBOX_EVENT,
+      aggregateType: 'achievement',
+      aggregateId: achievements[0].id,
+      payload: {
+        achievementId: achievements[0].id,
+        achievementName: 'First Purchase',
+        userId,
+      },
+    });
   });
 
   it.each([2, 3, 4])(
@@ -139,11 +151,16 @@ function createServiceHarness(options: {
   userAchievementRepository.manager = {
     transaction: jest.fn((callback) => callback(manager)),
   };
+  const outbox = {
+    create: jest.fn(async () => undefined),
+  };
 
   return {
     service: new AchievementEvaluatorService(
       userAchievementRepository as never,
+      outbox as unknown as OutboxService,
     ),
+    outbox,
     unlockStore,
   };
 }

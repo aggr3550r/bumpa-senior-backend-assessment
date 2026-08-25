@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { OutboxModule } from '../../outbox/outbox.module';
 import { Badge } from '../badges/entities/badge.entity';
 import { UserBadge } from '../badges/entities/user-badge.entity';
 import { User } from '../users/entities/user.entity';
@@ -8,7 +9,6 @@ import { AchievementDefinitionsLoader } from './achievement-definitions.loader';
 import { AchievementEvaluatorService } from './achievement-evaluator.service';
 import { Achievement } from './entities/achievement.entity';
 import { UserAchievement } from './entities/user-achievement.entity';
-import { EvaluatePurchaseAchievementsListener } from './listeners/evaluate-purchase-achievements.listener';
 import { UserAchievementProgressQueryService } from './user-achievement-progress-query.service';
 
 @Module({
@@ -20,11 +20,11 @@ import { UserAchievementProgressQueryService } from './user-achievement-progress
       Badge,
       UserBadge,
     ]),
+    OutboxModule,
   ],
   providers: [
     AchievementDefinitionsLoader,
     AchievementEvaluatorService,
-    EvaluatePurchaseAchievementsListener,
     UserAchievementProgressQueryService,
   ],
   controllers: [AchievementsController],
