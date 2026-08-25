@@ -59,6 +59,11 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
   }
 
   async dispatchOnce(): Promise<void> {
+    /*
+     * The API process also hosts the dispatcher in local/demo runtime. This
+     * in-memory guard prevents overlapping polls inside one process; the
+     * database claim still remains the cross-process safety boundary.
+     */
     if (this.isDispatching) {
       return;
     }
@@ -80,6 +85,11 @@ export class OutboxDispatcherService implements OnModuleInit, OnModuleDestroy {
           );
 
           await this.queueFor(event.eventType).add(event.eventType, event.payload, {
+            /*
+             * The outbox event id is the BullMQ job id. If dispatch is retried
+             * after a crash between enqueue and markPublished, BullMQ dedupes
+             * the enqueue while the consumer remains idempotent.
+             */
             jobId: event.id,
             attempts: 5,
             backoff: {
