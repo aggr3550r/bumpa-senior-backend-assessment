@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Repository } from 'typeorm';
+import { quoteTablePath } from '../../database/quote-table-path';
 import { BadgeDefinition } from '../../progression/progression-definition.types';
 import { Badge } from './entities/badge.entity';
 
@@ -35,6 +36,8 @@ export class BadgeDefinitionsLoader implements OnApplicationBootstrap {
     );
 
     await this.badgeRepository.manager.transaction(async (manager) => {
+      const badgeTable = this.getBadgeTablePath();
+
       /*
        * Badge definitions are runtime configuration. This transaction lock
        * prevents concurrent app instances from racing while the upsert keeps
@@ -47,7 +50,7 @@ export class BadgeDefinitionsLoader implements OnApplicationBootstrap {
       for (const [index, definition] of definitions.entries()) {
         await manager.query(
           `
-            UPDATE "badges"
+            UPDATE ${badgeTable}
             SET "ordering" = $2, "updated_at" = now()
             WHERE "name" = $1
           `,
@@ -58,7 +61,7 @@ export class BadgeDefinitionsLoader implements OnApplicationBootstrap {
       for (const definition of definitions) {
         await manager.query(
           `
-            INSERT INTO "badges" ("name", "required_achievement_count", "ordering")
+            INSERT INTO ${badgeTable} ("name", "required_achievement_count", "ordering")
             VALUES ($1, $2, $3)
             ON CONFLICT ("name")
             DO UPDATE SET
@@ -118,6 +121,10 @@ export class BadgeDefinitionsLoader implements OnApplicationBootstrap {
 
       return definition;
     });
+  }
+
+  private getBadgeTablePath(): string {
+    return quoteTablePath(this.badgeRepository.metadata?.tablePath ?? 'badges');
   }
 }
 

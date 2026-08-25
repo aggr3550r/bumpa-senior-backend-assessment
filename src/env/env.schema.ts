@@ -7,10 +7,12 @@ export interface Env {
   DATABASE_USER: string;
   DATABASE_PASSWORD: string;
   DATABASE_NAME: string;
+  DATABASE_SCHEMA: string;
   DATABASE_SSL: boolean;
   DATABASE_SYNCHRONIZE: boolean;
   REDIS_HOST: string;
   REDIS_PORT: number;
+  BULLMQ_PREFIX: string;
   OUTBOX_POLL_INTERVAL_MS: number;
   OUTBOX_BATCH_SIZE: number;
   CASHBACK_PROCESSING_STALE_AFTER_SECONDS: number;
@@ -39,10 +41,12 @@ export function loadEnv(env: Record<string, string | undefined>): Env {
     DATABASE_USER: readString(env, 'DATABASE_USER', 'bumpa'),
     DATABASE_PASSWORD: readString(env, 'DATABASE_PASSWORD', 'bumpa'),
     DATABASE_NAME: readString(env, 'DATABASE_NAME', 'bumpa_ecommerce'),
+    DATABASE_SCHEMA: readString(env, 'DATABASE_SCHEMA', 'public'),
     DATABASE_SSL: readBoolean(env, 'DATABASE_SSL', false),
     DATABASE_SYNCHRONIZE: readBoolean(env, 'DATABASE_SYNCHRONIZE', false),
     REDIS_HOST: readString(env, 'REDIS_HOST', 'localhost'),
     REDIS_PORT: readPositiveInteger(env, 'REDIS_PORT', 6379),
+    BULLMQ_PREFIX: readString(env, 'BULLMQ_PREFIX', 'bull'),
     OUTBOX_POLL_INTERVAL_MS: readPositiveInteger(
       env,
       'OUTBOX_POLL_INTERVAL_MS',

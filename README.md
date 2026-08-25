@@ -20,6 +20,7 @@ Local commands:
 npm run lint
 npm run build
 npm test
+npm run test:integration
 npm run migration:smoke
 npm run audit:secrets
 npm run audit:deps
@@ -42,6 +43,7 @@ GitHub Actions runs on pull requests against `main`:
 - `lint`
 - `build`
 - `test`
+- `integration-test`
 - `migrations`
 - `secret-scan`
 - `dependency-audit`
@@ -57,6 +59,7 @@ Code quality checks:
 - ESLint is configured to reject unused variables.
 - DTOs use `class-validator`, `class-transformer`, and Swagger decorators.
 - The app validates environment variables at startup.
+- Integration tests boot the real Nest application against PostgreSQL, Redis, the transactional outbox, and BullMQ while faking only external Paystack calls.
 - Migrations are smoke-tested against a disposable database.
 
 ## Quick Start With Docker
@@ -105,8 +108,11 @@ GET http://localhost:{PORT}/v1/users/{userId}/achievements
 Run tests in Docker:
 
 ```bash
+docker compose --profile tools build tests
 docker compose --profile tools run --rm tests
 ```
+
+The explicit build keeps the test image in sync with local package scripts and test files after code changes. This runs both `npm test` and `npm run test:e2e` with PostgreSQL and Redis provisioned by Docker Compose.
 
 Stop containers:
 
@@ -154,12 +160,16 @@ Useful local commands:
 ```bash
 npm run migration:show
 npm run migration:revert
+npm run test:integration
 npm run test:watch
 npm run test:cov
 npm run start:worker
 ```
 
-`start:worker` is retained for deployments that split API and background workers into separate processes.
+`test:integration` expects PostgreSQL and Redis to be reachable through the configured environment variables. Use `npm run docker:test` when you want Docker Compose to provision those services for you with a freshly built test image.
+
+`start:worker` is retained for deployments that split API and background workers into separate processes. It is not required for local development because the dev application starts the background processors automatically.
+
 
 ## Environment Variables
 
@@ -173,10 +183,12 @@ npm run start:worker
 | `DATABASE_USER`                           | Application database user.                                                  | `bumpa`                   |
 | `DATABASE_PASSWORD`                       | Application database password.                                              | `bumpa`                   |
 | `DATABASE_NAME`                           | Application database name.                                                  | `bumpa_ecommerce`         |
+| `DATABASE_SCHEMA`                         | PostgreSQL schema used by TypeORM connections.                              | `public`                  |
 | `DATABASE_SSL`                            | Enables PostgreSQL SSL.                                                     | `false`                   |
 | `DATABASE_SYNCHRONIZE`                    | TypeORM synchronize flag. Keep `false` outside throwaway development.       | `false`                   |
 | `REDIS_HOST`                              | Redis host for BullMQ.                                                      | `localhost`               |
 | `REDIS_PORT`                              | Redis port for BullMQ.                                                      | `6379`                    |
+| `BULLMQ_PREFIX`                           | Redis key prefix for BullMQ queues. Useful for isolating tests/workers.     | `bull`                    |
 | `OUTBOX_POLL_INTERVAL_MS`                 | Outbox dispatcher poll interval.                                            | `1000`                    |
 | `OUTBOX_BATCH_SIZE`                       | Max outbox rows claimed per dispatcher poll.                                | `25`                      |
 | `CASHBACK_PROCESSING_STALE_AFTER_SECONDS` | Age after which an in-flight cashback claim can be retried.                 | `300`                     |

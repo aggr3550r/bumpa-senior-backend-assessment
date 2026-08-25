@@ -16,6 +16,7 @@ import {
           host: configService.get<string>('REDIS_HOST', 'localhost'),
           port: configService.get<number>('REDIS_PORT', 6379),
         },
+        prefix: configService.get<string>('BULLMQ_PREFIX', 'bull'),
       }),
     }),
     BullModule.registerQueue(

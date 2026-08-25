@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { quoteTablePath } from '../database/quote-table-path';
 import { OutboxEvent } from './outbox-event.entity';
 import { OutboxEventStatus } from './outbox-event-status.enum';
 import {
@@ -41,6 +42,10 @@ export class OutboxService {
   }
 
   async claimPublishableBatch(limit: number): Promise<ClaimedOutboxEvent[]> {
+    const outboxTable = quoteTablePath(
+      this.outboxEventRepository.metadata.tablePath,
+    );
+
     /*
      * SKIP LOCKED lets multiple dispatcher processes cooperate without
      * blocking each other. The status update is the claim; if a dispatcher
@@ -48,7 +53,7 @@ export class OutboxService {
      */
     const queryResult = (await this.outboxEventRepository.query(
       `
-        UPDATE outbox_events
+        UPDATE ${outboxTable}
         SET
           status = $1,
           locked_at = now(),
@@ -56,7 +61,7 @@ export class OutboxService {
           updated_at = now()
         WHERE id IN (
           SELECT id
-          FROM outbox_events
+          FROM ${outboxTable}
           WHERE status IN ($2, $3)
             AND next_attempt_at <= now()
           ORDER BY created_at ASC

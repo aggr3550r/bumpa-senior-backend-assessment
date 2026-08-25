@@ -15,7 +15,7 @@
     "docker:start": "docker compose up app",
     "docker:worker": "docker compose up worker",
     "docker:migration:run": "docker compose --profile tools run --rm migrations",
-    "docker:test": "docker compose --profile tools run --rm tests",
+    "docker:test": "docker compose --profile tools build tests && docker compose --profile tools run --rm tests",
     "lint": "eslint \"{src,test}/**/*.ts\" --fix",
     "audit:deps": "npm audit --audit-level=high",
     "audit:secrets": "scripts/gitleaks-scan.sh",
@@ -30,7 +30,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "test:e2e": "jest --config ./test/jest-e2e.json"
+    "test:integration": "jest --config ./test/jest-e2e.json --runInBand",
+    "test:e2e": "npm run test:integration"
   },
   "dependencies": {
     "@nestjs/bullmq": "^11.0.5",

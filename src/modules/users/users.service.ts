@@ -110,12 +110,23 @@ export class UsersService {
   }
 
   private isUniqueViolation(error: unknown, constraint: string): boolean {
+    if (!(error instanceof QueryFailedError)) {
+      return false;
+    }
+
+    const driverError = error.driverError as {
+      code?: string;
+      constraint?: string;
+      detail?: string;
+      table?: string;
+    };
+
     return (
-      error instanceof QueryFailedError &&
-      (error.driverError as { code?: string; constraint?: string }).code ===
-        '23505' &&
-      (error.driverError as { code?: string; constraint?: string })
-        .constraint === constraint
+      driverError.code === '23505' &&
+      (driverError.constraint === constraint ||
+        (driverError.table === 'users' &&
+          Boolean(driverError.constraint?.includes('email'))) ||
+        Boolean(driverError.detail?.includes('Key (email)')))
     );
   }
 }

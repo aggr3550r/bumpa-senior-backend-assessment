@@ -42,6 +42,55 @@ jobs:
       - run: npm ci
       - run: npm test
 
+  integration-test:
+    name: Integration Test
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: bumpa
+          POSTGRES_PASSWORD: bumpa
+          POSTGRES_DB: bumpa_ecommerce
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U bumpa -d bumpa_ecommerce"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+    env:
+      NODE_ENV: test
+      DATABASE_HOST: localhost
+      DATABASE_PORT: 5432
+      DATABASE_USER: bumpa
+      DATABASE_PASSWORD: bumpa
+      DATABASE_NAME: bumpa_ecommerce
+      DATABASE_SCHEMA: public
+      DATABASE_SYNCHRONIZE: true
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      BULLMQ_PREFIX: integration
+      OUTBOX_POLL_INTERVAL_MS: 50
+      PAYSTACK_SECRET_KEY: test_paystack_secret_key
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run test:integration
+
   migrations:
     name: Migrations
     runs-on: ubuntu-latest

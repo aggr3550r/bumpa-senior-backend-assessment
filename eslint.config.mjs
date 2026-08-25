@@ -15,6 +15,8 @@ export default [
       },
       globals: {
         afterEach: 'readonly',
+        afterAll: 'readonly',
+        beforeAll: 'readonly',
         beforeEach: 'readonly',
         console: 'readonly',
         describe: 'readonly',
