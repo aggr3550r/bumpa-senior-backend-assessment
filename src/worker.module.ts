@@ -20,8 +20,12 @@ import { DomainWorkersModule } from './queues/domain-workers.module';
         username: configService.get<string>('DATABASE_USER', 'bumpa'),
         password: configService.get<string>('DATABASE_PASSWORD', 'bumpa'),
         database: configService.get<string>('DATABASE_NAME', 'bumpa_ecommerce'),
+        schema: configService.get<string>('DATABASE_SCHEMA', 'public'),
         autoLoadEntities: true,
         synchronize: configService.get<boolean>('DATABASE_SYNCHRONIZE', false),
+        extra: {
+          options: `-c search_path=${configService.get<string>('DATABASE_SCHEMA', 'public')},public`,
+        },
         ssl:
           configService.get<boolean>('DATABASE_SSL', false)
             ? { rejectUnauthorized: false }

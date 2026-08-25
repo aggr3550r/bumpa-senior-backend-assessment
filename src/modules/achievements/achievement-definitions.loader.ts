@@ -8,6 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Repository } from 'typeorm';
+import { quoteTablePath } from '../../database/quote-table-path';
 import { AchievementDefinition } from '../../progression/progression-definition.types';
 import { Achievement } from './entities/achievement.entity';
 
@@ -39,6 +40,8 @@ export class AchievementDefinitionsLoader implements OnApplicationBootstrap {
     );
 
     await this.achievementRepository.manager.transaction(async (manager) => {
+      const achievementTable = this.getAchievementTablePath();
+
       /*
        * The loader may run on several app instances during deploys. A database
        * advisory lock serializes definition sync, while ON CONFLICT keeps the
@@ -51,7 +54,7 @@ export class AchievementDefinitionsLoader implements OnApplicationBootstrap {
       for (const definition of definitions) {
         await manager.query(
           `
-            INSERT INTO "achievements" ("name", "group", "threshold", "ordering")
+            INSERT INTO ${achievementTable} ("name", "group", "threshold", "ordering")
             VALUES ($1, $2, $3, $4)
             ON CONFLICT ("name")
             DO UPDATE SET
@@ -119,6 +122,12 @@ export class AchievementDefinitionsLoader implements OnApplicationBootstrap {
 
       return definition;
     });
+  }
+
+  private getAchievementTablePath(): string {
+    return quoteTablePath(
+      this.achievementRepository.metadata?.tablePath ?? 'achievements',
+    );
   }
 }
 
