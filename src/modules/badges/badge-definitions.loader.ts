@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Repository } from 'typeorm';
 import { quoteTablePath } from '../../database/quote-table-path';
-import { BadgeDefinition } from '../../progression/progression-definition.types';
+import { BadgeDefinition } from '../progression/progression-definition.types';
 import { Badge } from './entities/badge.entity';
 
 @Injectable()
