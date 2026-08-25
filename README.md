@@ -34,6 +34,15 @@ Swagger docs are available at:
 http://localhost:{PORT}/docs
 ```
 
+API routes are versioned under `/v1`, for example:
+
+```text
+GET http://localhost:{PORT}/v1/health
+GET http://localhost:{PORT}/v1/users
+POST http://localhost:{PORT}/v1/users/{userId}/purchases
+GET http://localhost:{PORT}/v1/users/{userId}/achievements
+```
+
 Run tests in Docker:
 
 ```bash
