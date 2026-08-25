@@ -260,6 +260,24 @@ curl -X POST http://localhost:3000/v1/users \
 
 Keep the returned `data.id`; it is the `userId` used by purchase and progress routes.
 
+Use correct bank details when possible, especially the provider bank code, because user creation verifies the account behind the scenes before persisting the user. Paystack exposes supported banks and their codes through its List Banks API:
+
+```bash
+curl 'https://api.paystack.co/bank?currency=NGN' \
+  -H "Authorization: Bearer ${PAYSTACK_SECRET_KEY}" \
+  -X GET
+```
+
+In Paystack test mode, live bank-account resolves may hit a daily limit after three successful resolves. If user creation fails with this Paystack response, use test bank code `001` for the demo request:
+
+```json
+{
+  "message": "Test mode daily limit of 3 live bank resolves exceeded. Use test bank codes 001 or upgrade to live mode.",
+  "error": "Bad Request",
+  "statusCode": 400
+}
+```
+
 To list existing users when manually testing:
 
 ```bash

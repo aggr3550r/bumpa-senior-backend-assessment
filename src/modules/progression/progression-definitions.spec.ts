@@ -40,7 +40,7 @@ describe('progression definitions', () => {
 
 function readJsonResource<T>(fileName: string): T[] {
   return JSON.parse(
-    readFileSync(join(__dirname, '../resources', fileName), 'utf8'),
+    readFileSync(join(__dirname, '../../resources', fileName), 'utf8'),
   ) as T[];
 }
 

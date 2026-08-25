@@ -1,8 +1,8 @@
 import { getMetadataArgsStorage } from 'typeorm';
-import { Achievement } from '../modules/achievements/entities/achievement.entity';
-import { UserAchievement } from '../modules/achievements/entities/user-achievement.entity';
-import { Badge } from '../modules/badges/entities/badge.entity';
-import { UserBadge } from '../modules/badges/entities/user-badge.entity';
+import { Achievement } from '../achievements/entities/achievement.entity';
+import { UserAchievement } from '../achievements/entities/user-achievement.entity';
+import { Badge } from '../badges/entities/badge.entity';
+import { UserBadge } from '../badges/entities/user-badge.entity';
 
 describe('progression entities', () => {
   it('prevents duplicate achievement unlocks for the same user', () => {

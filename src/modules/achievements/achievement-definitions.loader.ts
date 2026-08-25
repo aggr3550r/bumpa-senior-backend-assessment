@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { Repository } from 'typeorm';
 import { quoteTablePath } from '../../database/quote-table-path';
-import { AchievementDefinition } from '../../progression/progression-definition.types';
+import { AchievementDefinition } from '../progression/progression-definition.types';
 import { Achievement } from './entities/achievement.entity';
 
 @Injectable()
