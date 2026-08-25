@@ -244,63 +244,9 @@ The purchase response returns before achievement, badge, and cashback processing
 
 ## Architecture
 
-```mermaid
-flowchart TD
-  Client[API Client / Postman / Reviewer] --> API[NestJS API]
+[![Application architecture and data flow](docs/assets/application-architecture.png)](https://www.figma.com/board/cQn3cc50T5KGtS4JaoFjCp/Bumpa-Senior-Backend-Assessment-%E2%80%94-Application-Architecture?node-id=0-1&t=uAB8Qw2vPyT3pAdU-1)
 
-  API --> Users[Users Module]
-  API --> Purchases[Purchases Module]
-  API --> Progress[Achievement Progress Query]
-
-  Users --> BankVerifier[Bank Account Verifier Contract]
-  BankVerifier --> PaystackVerify[Paystack Account Verification API]
-
-  Purchases --> Postgres[(PostgreSQL)]
-  Purchases --> Outbox[Transactional Outbox Table]
-
-  Outbox --> Dispatcher[Outbox Dispatcher]
-  Dispatcher --> Redis[(Redis)]
-  Redis --> BullMQ[BullMQ Queues]
-
-  BullMQ --> PurchaseWorker[Purchase Completed Processor]
-  PurchaseWorker --> AchievementEvaluator[Achievement Evaluator]
-  AchievementEvaluator --> Postgres
-  AchievementEvaluator --> Outbox
-
-  BullMQ --> AchievementWorker[Achievement Unlocked Processor]
-  AchievementWorker --> BadgeProgression[Badge Progression Service]
-  BadgeProgression --> Postgres
-  BadgeProgression --> Outbox
-
-  BullMQ --> BadgeWorker[Badge Unlocked Cashback Processor]
-  BadgeWorker --> CashbackService[Cashback Payment Service]
-  CashbackService --> Postgres
-
-  BadgeWorker --> CashbackProvider[Cashback Provider Contract]
-  CashbackProvider --> PaystackTransfer[Paystack Transfer API]
-  PaystackTransfer --> CashbackService
-
-  Progress --> Postgres
-
-  subgraph Durable State
-    Postgres
-    Outbox
-  end
-
-  subgraph Async Event Processing
-    Dispatcher
-    Redis
-    BullMQ
-    PurchaseWorker
-    AchievementWorker
-    BadgeWorker
-  end
-
-  subgraph External Providers
-    PaystackVerify
-    PaystackTransfer
-  end
-```
+The diagram above shows how API requests, domain services, durable storage, the transactional outbox, Redis/BullMQ workers, and Paystack integrations cooperate across the system.
 
 Simplified reward flow:
 
