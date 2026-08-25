@@ -218,9 +218,29 @@ Swagger remains available at:
 http://localhost:{PORT}/docs
 ```
 
-## API Example
+## API Usage Walkthrough
 
-Create a user:
+The API is designed to let a reviewer exercise the full reward lifecycle with a small number of calls:
+
+1. Create a user with bank details.
+2. Use the returned user `id` to create completed purchases.
+3. Poll the achievement progress endpoint after async processing runs.
+4. Observe achievements, badges, and eventual cashback state in the database/logs.
+
+All successful API responses use the same wrapper:
+
+```json
+{
+  "status": true,
+  "statusCode": 200,
+  "message": "Human readable message",
+  "data": {}
+}
+```
+
+### 1. Create A User
+
+`POST /v1/users` creates a user and verifies the supplied bank account details. The submitted `accountName` is not trusted as final payout state; Paystack account verification resolves and stores the verified account name.
 
 ```bash
 curl -X POST http://localhost:3000/v1/users \
@@ -238,7 +258,42 @@ curl -X POST http://localhost:3000/v1/users \
   }'
 ```
 
-Create a completed purchase:
+Keep the returned `data.id`; it is the `userId` used by purchase and progress routes.
+
+To list existing users when manually testing:
+
+```bash
+curl http://localhost:3000/v1/users
+```
+
+### 2. Check The New User's Progress
+
+`GET /v1/users/{userId}/achievements` returns the user's reward state. A brand-new user should have no unlocked achievements or badges, and should see the first available purchase achievement.
+
+```bash
+curl http://localhost:3000/v1/users/{userId}/achievements
+```
+
+Expected shape:
+
+```json
+{
+  "status": true,
+  "statusCode": 200,
+  "message": "User achievement progress retrieved successfully",
+  "data": {
+    "unlockedAchievements": [],
+    "nextAvailableAchievements": ["First Purchase"],
+    "currentBadge": null,
+    "nextBadge": "Starter",
+    "remainingToUnlockNextBadge": 2
+  }
+}
+```
+
+### 3. Create Purchases
+
+`POST /v1/users/{userId}/purchases` records a completed purchase. The request commits the purchase and a durable outbox event, then returns immediately. Achievement, badge, and cashback work happens asynchronously through the outbox dispatcher and BullMQ processors.
 
 ```bash
 curl -X POST http://localhost:3000/v1/users/{userId}/purchases \
@@ -246,39 +301,95 @@ curl -X POST http://localhost:3000/v1/users/{userId}/purchases \
   -d '{ "amount": 1200 }'
 ```
 
-Check progression:
+After one purchase, the async processors should unlock `First Purchase`. Poll the progress endpoint again:
 
 ```bash
 curl http://localhost:3000/v1/users/{userId}/achievements
 ```
 
-The purchase response returns before achievement, badge, and cashback processing finishes. The embedded outbox dispatcher and BullMQ processors complete that work asynchronously.
+Expected progression after the first purchase:
+
+```json
+{
+  "data": {
+    "unlockedAchievements": ["First Purchase"],
+    "nextAvailableAchievements": ["5 Purchases"],
+    "currentBadge": null,
+    "nextBadge": "Starter",
+    "remainingToUnlockNextBadge": 1
+  }
+}
+```
+
+Create four more purchases to reach the `5 Purchases` achievement:
+
+```bash
+for i in 1 2 3 4; do
+  curl -X POST http://localhost:3000/v1/users/{userId}/purchases \
+    -H 'Content-Type: application/json' \
+    -d '{ "amount": 1200 }'
+done
+```
+
+Expected progression after five completed purchases:
+
+```json
+{
+  "data": {
+    "unlockedAchievements": ["First Purchase", "5 Purchases"],
+    "nextAvailableAchievements": [],
+    "currentBadge": "Starter",
+    "nextBadge": "Loyal Customer",
+    "remainingToUnlockNextBadge": 3
+  }
+}
+```
+
+### 4. Understand The Reward Rules
+
+Current achievement definitions are loaded from `src/resources/achievement-definitions.json`:
+
+| Achievement      | Group       | Unlock rule                    |
+| ---------------- | ----------- | ------------------------------ |
+| `First Purchase` | `purchases` | 1 completed purchase           |
+| `5 Purchases`    | `purchases` | 5 completed purchases          |
+
+Current badge definitions are loaded from `src/resources/badge-definitions.json`:
+
+| Badge            | Unlock rule             |
+| ---------------- | ----------------------- |
+| `Starter`        | 2 unlocked achievements |
+| `Loyal Customer` | 5 unlocked achievements |
+
+The important distinction is that badges are based on unlocked achievement count, not purchase count. With the default definitions, a user earns `Starter` when `5 Purchases` unlocks because that is the user's second achievement.
+
+### 5. Cashback Behavior
+
+Unlocking a badge emits `badge.unlocked`, which triggers cashback processing asynchronously. The processor creates or reuses one cashback entitlement for the user/badge pair and attempts to send exactly `NGN 300`.
+
+The purchase endpoint does not wait for Paystack. Check application logs for the outbox dispatcher, BullMQ processors, and cashback provider messages when manually testing. In the database, the result is stored in `cashback_payments` with status, provider reference, failure reason, and attempt count.
+
+If Paystack rejects the transfer or the network fails, the badge remains unlocked and the cashback row remains auditable/retryable. A successful cashback is terminal and is never resent for the same badge.
+
+### 6. API References
+
+Swagger documents request/response schemas at:
+
+```text
+http://localhost:{PORT}/docs
+```
+
+The shared Postman collection is also available here:
+
+```text
+https://www.postman.com/aggr-3550-r-22-s-team/workspace/bumpa-ecommerce-backend/collection/29245943-66345438-5182-4dff-9e9c-9efe5c8aecc7?action=share&source=copy-link&creator=29245943
+```
 
 ## Architecture
 
 [![Application architecture and data flow](docs/assets/application-architecture.png)](https://www.figma.com/board/cQn3cc50T5KGtS4JaoFjCp/Bumpa-Senior-Backend-Assessment-%E2%80%94-Application-Architecture?node-id=0-1&t=uAB8Qw2vPyT3pAdU-1)
 
 The diagram above shows how API requests, domain services, durable storage, the transactional outbox, Redis/BullMQ workers, and Paystack integrations cooperate across the system.
-
-Simplified reward flow:
-
-```mermaid
-flowchart TD
-  Purchase[Purchase]
-  AchievementEvaluator[Achievement Evaluator]
-  AchievementUnlocked[AchievementUnlocked]
-  BadgeEvaluator[Badge Evaluator]
-  BadgeUnlocked[BadgeUnlocked]
-  CashbackProcessor[Cashback Processor]
-  PaymentProvider[Payment Provider]
-
-  Purchase --> AchievementEvaluator
-  AchievementEvaluator --> AchievementUnlocked
-  AchievementUnlocked --> BadgeEvaluator
-  BadgeEvaluator --> BadgeUnlocked
-  BadgeUnlocked --> CashbackProcessor
-  CashbackProcessor --> PaymentProvider
-```
 
 ## Event Flow
 
