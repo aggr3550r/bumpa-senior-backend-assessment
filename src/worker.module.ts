@@ -2,15 +2,8 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { loadEnv } from './env';
-import { AchievementsModule } from './modules/achievements/achievements.module';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { BadgesModule } from './modules/badges/badges.module';
-import { CashbackModule } from './modules/cashback/cashback.module';
 import { IntegrationsModule } from './integrations/integrations.module';
-import { PurchasesModule } from './modules/purchases/purchases.module';
 import { DomainWorkersModule } from './queues/domain-workers.module';
-import { UsersModule } from './modules/users/users.module';
 
 @Module({
   imports: [
@@ -36,14 +29,7 @@ import { UsersModule } from './modules/users/users.module';
       }),
     }),
     IntegrationsModule,
-    UsersModule,
-    AchievementsModule,
-    BadgesModule,
-    CashbackModule,
-    PurchasesModule,
     DomainWorkersModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
-export class AppModule {}
+export class WorkerModule {}

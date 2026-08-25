@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, LessThanOrEqual, Repository } from 'typeorm';
+import { ACHIEVEMENT_UNLOCKED_OUTBOX_EVENT } from '../../outbox/outbox-event.types';
+import { OutboxService } from '../../outbox/outbox.service';
 import { PURCHASE_ACHIEVEMENT_GROUP } from './types/achievement-definitions';
 import {
   AchievementEvaluationResult,
@@ -16,6 +18,7 @@ export class AchievementEvaluatorService {
   constructor(
     @InjectRepository(UserAchievement)
     private readonly userAchievementRepository: Repository<UserAchievement>,
+    private readonly outbox: OutboxService,
   ) {}
 
   async evaluatePurchaseAchievements(
@@ -72,6 +75,16 @@ export class AchievementEvaluatorService {
       );
 
       if (wasUnlocked) {
+        await this.outbox.create(manager, {
+          eventType: ACHIEVEMENT_UNLOCKED_OUTBOX_EVENT,
+          aggregateType: 'achievement',
+          aggregateId: achievement.id,
+          payload: {
+            achievementId: achievement.id,
+            achievementName: achievement.name,
+            userId,
+          },
+        });
         unlockedAchievements.push(achievement);
         this.logger.log(
           `Achievement unlocked: userId=${userId}, achievementId=${achievement.id}, achievementName=${achievement.name}, group=${group}, threshold=${achievement.threshold}`,

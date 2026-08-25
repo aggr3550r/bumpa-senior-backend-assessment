@@ -23,13 +23,9 @@ WORKDIR /app
 ENV HUSKY=0
 ENV NODE_ENV=production
 COPY package*.json ./
-
-
 RUN npm ci --omit=dev --ignore-scripts \
   && npm cache clean --force \
   && rm -rf /usr/local/lib/node_modules/npm /usr/local/bin/npm /usr/local/bin/npx
-
-  
 COPY --from=build /app/dist ./dist
 EXPOSE 3000
 CMD ["node", "dist/main"]

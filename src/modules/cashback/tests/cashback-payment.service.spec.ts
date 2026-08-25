@@ -266,10 +266,7 @@ class FakeQueryBuilder {
     if (this.paymentId) {
       const payment = this.findPaymentById(this.paymentId);
 
-      if (
-        this.claimableStatuses &&
-        !this.isClaimable(payment)
-      ) {
+      if (this.claimableStatuses && !this.isClaimable(payment)) {
         return { raw: [] };
       }
 

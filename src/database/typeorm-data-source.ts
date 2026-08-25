@@ -8,6 +8,7 @@ import { UserBadge } from '../modules/badges/entities/user-badge.entity';
 import { CashbackPayment } from '../modules/cashback/entities/cashback-payment.entity';
 import { Purchase } from '../modules/purchases/entities/purchase.entity';
 import { User } from '../modules/users/entities/user.entity';
+import { OutboxEvent } from '../outbox/outbox-event.entity';
 
 config();
 
@@ -35,6 +36,7 @@ export default new DataSource({
     UserBadge,
     CashbackPayment,
     Purchase,
+    OutboxEvent,
   ],
   migrations: [migrationsGlob],
   synchronize: false,

@@ -1,11 +1,10 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { EventEmitter2 } from '@nestjs/event-emitter';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { PURCHASE_COMPLETED_OUTBOX_EVENT } from '../../outbox/outbox-event.types';
+import { OutboxService } from '../../outbox/outbox.service';
 import { User } from '../users/entities/user.entity';
 import { Purchase } from './entities/purchase.entity';
-import { PurchaseCompletedEvent } from './events/purchase-completed.event';
-import { PURCHASE_COMPLETED_EVENT } from './events/purchase.events';
 import { PurchaseStatus } from './types/purchase-status.enum';
 
 @Injectable()
@@ -15,7 +14,7 @@ export class PurchasesService {
   constructor(
     @InjectRepository(Purchase)
     private readonly purchaseRepository: Repository<Purchase>,
-    private readonly eventEmitter: EventEmitter2,
+    private readonly outbox: OutboxService,
   ) {}
 
   async createCompletedPurchase(userId: string, amount: number) {
@@ -23,7 +22,7 @@ export class PurchasesService {
       `Creating completed purchase: userId=${userId}, amount=${amount}`,
     );
 
-    const { purchase, user, totalCompletedPurchases } =
+    const { purchase, totalCompletedPurchases } =
       await this.purchaseRepository.manager.transaction(async (manager) => {
         const userRepository = manager.getRepository(User);
         const purchaseRepository = manager.getRepository(Purchase);
@@ -53,27 +52,31 @@ export class PurchasesService {
           },
         });
 
+        await this.outbox.create(manager, {
+          eventType: PURCHASE_COMPLETED_OUTBOX_EVENT,
+          aggregateType: 'purchase',
+          aggregateId: purchase.id,
+          payload: {
+            purchaseId: purchase.id,
+            userId,
+            totalCompletedPurchases,
+          },
+        });
+        this.logger.debug(
+          `Purchase completed outbox event created: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
+        );
+
         return {
           purchase,
-          user,
           totalCompletedPurchases,
         };
       });
 
     this.logger.log(
-      `Completed purchase persisted: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
+      `Completed purchase persisted and queued for async processing: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
     );
     this.logger.debug(
-      `Emitting purchase completed event: purchaseId=${purchase.id}, userId=${userId}, totalCompletedPurchases=${totalCompletedPurchases}`,
-    );
-
-    await this.eventEmitter.emitAsync(
-      PURCHASE_COMPLETED_EVENT,
-      new PurchaseCompletedEvent(user, totalCompletedPurchases),
-    );
-
-    this.logger.debug(
-      `Purchase completed event handlers finished: purchaseId=${purchase.id}, userId=${userId}`,
+      `Purchase response can return without waiting for achievement, badge, or cashback processing: purchaseId=${purchase.id}`,
     );
 
     return {
