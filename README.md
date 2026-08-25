@@ -87,6 +87,21 @@ Use a different host port:
 HOST_PORT=8085 docker compose up app
 ```
 
+Swagger docs are available at:
+
+```text
+http://localhost:{PORT}/docs
+```
+
+API routes are versioned under `/v1`, for example:
+
+```text
+GET http://localhost:{PORT}/v1/health
+GET http://localhost:{PORT}/v1/users
+POST http://localhost:{PORT}/v1/users/{userId}/purchases
+GET http://localhost:{PORT}/v1/users/{userId}/achievements
+```
+
 Run tests in Docker:
 
 ```bash
@@ -148,28 +163,28 @@ npm run start:worker
 
 ## Environment Variables
 
-| Variable | Purpose | Default |
-| --- | --- | --- |
-| `NODE_ENV` | Runtime mode. Development enables the Paystack restricted-payout mock path. | `development` |
-| `PORT` | Port the Nest app listens on inside the process/container. | `3000` |
-| `LOG_LEVELS` | Comma-separated Nest log levels. | `log,error,warn,debug` |
-| `DATABASE_HOST` | PostgreSQL host. | `localhost` |
-| `DATABASE_PORT` | PostgreSQL port. | `5432` |
-| `DATABASE_USER` | Application database user. | `bumpa` |
-| `DATABASE_PASSWORD` | Application database password. | `bumpa` |
-| `DATABASE_NAME` | Application database name. | `bumpa_ecommerce` |
-| `DATABASE_SSL` | Enables PostgreSQL SSL. | `false` |
-| `DATABASE_SYNCHRONIZE` | TypeORM synchronize flag. Keep `false` outside throwaway development. | `false` |
-| `REDIS_HOST` | Redis host for BullMQ. | `localhost` |
-| `REDIS_PORT` | Redis port for BullMQ. | `6379` |
-| `OUTBOX_POLL_INTERVAL_MS` | Outbox dispatcher poll interval. | `1000` |
-| `OUTBOX_BATCH_SIZE` | Max outbox rows claimed per dispatcher poll. | `25` |
-| `CASHBACK_PROCESSING_STALE_AFTER_SECONDS` | Age after which an in-flight cashback claim can be retried. | `300` |
-| `PROGRESSION_DEFINITION_LOADERS_ENABLED` | Enables JSON definition loaders at startup. | `true` |
-| `PAYSTACK_BASE_URL` | Paystack API base URL. | `https://api.paystack.co` |
-| `PAYSTACK_SECRET_KEY` | Paystack secret key. Required. | none |
-| `PAYSTACK_TRANSFER_SOURCE` | Paystack transfer source. | `balance` |
-| `PAYSTACK_CURRENCY` | Paystack transfer currency. | `NGN` |
+| Variable                                  | Purpose                                                                     | Default                   |
+| ----------------------------------------- | --------------------------------------------------------------------------- | ------------------------- |
+| `NODE_ENV`                                | Runtime mode. Development enables the Paystack restricted-payout mock path. | `development`             |
+| `PORT`                                    | Port the Nest app listens on inside the process/container.                  | `3000`                    |
+| `LOG_LEVELS`                              | Comma-separated Nest log levels.                                            | `log,error,warn,debug`    |
+| `DATABASE_HOST`                           | PostgreSQL host.                                                            | `localhost`               |
+| `DATABASE_PORT`                           | PostgreSQL port.                                                            | `5432`                    |
+| `DATABASE_USER`                           | Application database user.                                                  | `bumpa`                   |
+| `DATABASE_PASSWORD`                       | Application database password.                                              | `bumpa`                   |
+| `DATABASE_NAME`                           | Application database name.                                                  | `bumpa_ecommerce`         |
+| `DATABASE_SSL`                            | Enables PostgreSQL SSL.                                                     | `false`                   |
+| `DATABASE_SYNCHRONIZE`                    | TypeORM synchronize flag. Keep `false` outside throwaway development.       | `false`                   |
+| `REDIS_HOST`                              | Redis host for BullMQ.                                                      | `localhost`               |
+| `REDIS_PORT`                              | Redis port for BullMQ.                                                      | `6379`                    |
+| `OUTBOX_POLL_INTERVAL_MS`                 | Outbox dispatcher poll interval.                                            | `1000`                    |
+| `OUTBOX_BATCH_SIZE`                       | Max outbox rows claimed per dispatcher poll.                                | `25`                      |
+| `CASHBACK_PROCESSING_STALE_AFTER_SECONDS` | Age after which an in-flight cashback claim can be retried.                 | `300`                     |
+| `PROGRESSION_DEFINITION_LOADERS_ENABLED`  | Enables JSON definition loaders at startup.                                 | `true`                    |
+| `PAYSTACK_BASE_URL`                       | Paystack API base URL.                                                      | `https://api.paystack.co` |
+| `PAYSTACK_SECRET_KEY`                     | Paystack secret key. Required.                                              | none                      |
+| `PAYSTACK_TRANSFER_SOURCE`                | Paystack transfer source.                                                   | `balance`                 |
+| `PAYSTACK_CURRENCY`                       | Paystack transfer currency.                                                 | `NGN`                     |
 
 ## API Versioning
 
@@ -483,4 +498,3 @@ Badge progression is based on unlocked achievements, not purchase count. A user 
 - The app requires Redis because BullMQ powers asynchronous processing.
 - The app requires PostgreSQL because migrations, constraints, and transactional outbox behavior are central to correctness.
 - Development mode may mock Paystack's third-party payout restriction to keep reviewer demos possible with an unverified Paystack business.
-
